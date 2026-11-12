@@ -274,13 +274,32 @@ Return ONLY valid JSON matching this exact schema:
 }`;
 
   if (env.AI && typeof env.AI.run === 'function') {
-    const result = (await env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+    const result = (await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fast', {
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
-    })) as { response?: string };
-    if (result?.response) {
-      const parsed = JSON.parse(result.response) as { categories: RawCategoryDraft[] };
+      max_tokens: 1500,
+    })) as {
+      response?: unknown;
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    // Workers AI returns either the legacy { response: string } shape or the
+    // newer OpenAI-style chat.completion shape (choices[0].message.content),
+    // depending on the model build. Handle both, plus a pre-parsed object.
+    const text =
+      typeof result?.response === 'string'
+        ? result.response
+        : result?.choices?.[0]?.message?.content;
+    if (text) {
+      // Tolerate prose or code fences around the JSON object.
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      const jsonText =
+        start >= 0 && end > start ? text.slice(start, end + 1) : text;
+      const parsed = JSON.parse(jsonText) as { categories: RawCategoryDraft[] };
       return parsed.categories;
+    }
+    if (result?.response && typeof result.response === 'object') {
+      return (result.response as { categories: RawCategoryDraft[] }).categories;
     }
   }
 
@@ -334,7 +353,7 @@ export async function proposeBreakdown(
       return {
         categories: validated,
         source: 'ai_live',
-        model_used: env.AI_MODEL ?? '@cf/meta/llama-3.1-8b-instruct',
+        model_used: env.AI_MODEL ?? '@cf/meta/llama-3.1-8b-instruct-fast',
       };
     } catch {
       // Retry once per PDD Flow A step 3, then fall back to seeded breakdown
