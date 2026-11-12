@@ -1,8 +1,11 @@
 # Brief: Real PayPal Buyer-Approval Redirect Flow (HELD — post-submission polish)
 
-**Status: DRAFTED, NOT FIRED.** Do not start work on this brief until Ryan confirms
-in the PayPal side chat that the Devpost submission is in. Owner of this brief:
-Muse (scope/review). Builders: Antigravity coding agents, directly on this repo.
+**Status: BRANCH WORK AUTHORIZED (Ryan, 2026-11-12 09:07 PST).** Coding agents
+may build on a branch/worktree in parallel with the Devpost submission work.
+**Merge and deploy remain held:** merge only on Ryan's explicit say-so, deploy
+only after the Devpost submission is confirmed in and before the 11:30 AM
+deadline guard below. Owner of this brief: Muse (scope/review). Builders:
+Antigravity coding agents, directly on this repo.
 
 ## Why
 
