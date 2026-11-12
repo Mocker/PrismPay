@@ -14,6 +14,7 @@ import { computeAuditEventHash } from './crypto.ts';
 export interface StorageStore {
   init(): Promise<void>;
   createProject(project: Project): Promise<Project>;
+  updateProject(project: Project): Promise<Project>;
   getProject(id: string): Promise<Project | null>;
   listProjects(): Promise<Project[]>;
   saveMandate(mandate: Mandate): Promise<Mandate>;
@@ -26,6 +27,7 @@ export interface StorageStore {
   updateProposalDecision(proposalId: string, decision: ProposalDecision): Promise<void>;
   savePayment(payment: Payment): Promise<Payment>;
   getPaymentByProposal(proposalId: string): Promise<Payment | null>;
+  getPaymentByOrderId(paypalOrderId: string): Promise<Payment | null>;
   appendAuditEvent(
     projectId: string,
     type: AuditEventType,
@@ -49,6 +51,11 @@ export class MemoryStore implements StorageStore {
   async init(): Promise<void> {}
 
   async createProject(project: Project): Promise<Project> {
+    this.projects.set(project.id, { ...project });
+    return project;
+  }
+
+  async updateProject(project: Project): Promise<Project> {
     this.projects.set(project.id, { ...project });
     return project;
   }
@@ -147,7 +154,15 @@ export class MemoryStore implements StorageStore {
 
   async savePayment(payment: Payment): Promise<Payment> {
     const existing = this.paymentsByProposal.get(payment.proposal_id);
-    if (existing && existing.status === 'captured') {
+    if (
+      existing &&
+      existing.status === 'captured' &&
+      (existing.paypal_order_id !== payment.paypal_order_id ||
+        payment.status !== 'captured' ||
+        (existing.paypal_capture_id &&
+          payment.paypal_capture_id &&
+          existing.paypal_capture_id !== payment.paypal_capture_id))
+    ) {
       throw new Error(`Proposal ${payment.proposal_id} already has a captured payment`);
     }
     this.paymentsByProposal.set(payment.proposal_id, { ...payment });
@@ -157,6 +172,15 @@ export class MemoryStore implements StorageStore {
   async getPaymentByProposal(proposalId: string): Promise<Payment | null> {
     const pay = this.paymentsByProposal.get(proposalId);
     return pay ? { ...pay } : null;
+  }
+
+  async getPaymentByOrderId(paypalOrderId: string): Promise<Payment | null> {
+    for (const pay of this.paymentsByProposal.values()) {
+      if (pay.paypal_order_id === paypalOrderId) {
+        return { ...pay };
+      }
+    }
+    return null;
   }
 
   async appendAuditEvent(
@@ -210,11 +234,11 @@ export class D1Store implements StorageStore {
   async init(): Promise<void> {
     if (this.initialized) return;
     const statements = [
-      `CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, goal_text TEXT NOT NULL, total_budget_cents INTEGER NOT NULL, currency TEXT NOT NULL DEFAULT 'USD', created_at TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, goal_text TEXT NOT NULL, total_budget_cents INTEGER NOT NULL, currency TEXT NOT NULL DEFAULT 'USD', paypal_approval_flow INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS mandates (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, version INTEGER NOT NULL, categories_json TEXT NOT NULL, total_budget_cents INTEGER NOT NULL, owner_label TEXT NOT NULL, sha256_hash TEXT NOT NULL, signed_at TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active')`,
       `CREATE TABLE IF NOT EXISTS proposals (id TEXT PRIMARY KEY, project_id TEXT NOT NULL, mandate_id TEXT NOT NULL, item_id TEXT, item_name TEXT NOT NULL, vendor TEXT NOT NULL, category TEXT NOT NULL, quoted_price_cents INTEGER NOT NULL, quantity INTEGER NOT NULL DEFAULT 1, justification TEXT NOT NULL, source TEXT NOT NULL DEFAULT 'agent', created_at TEXT NOT NULL, decision TEXT NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS gate_results (id INTEGER PRIMARY KEY AUTOINCREMENT, proposal_id TEXT NOT NULL, gate TEXT NOT NULL, gate_name TEXT NOT NULL, outcome TEXT NOT NULL, reason_code TEXT NOT NULL, detail_numbers_json TEXT NOT NULL, explanation TEXT NOT NULL)`,
-      `CREATE TABLE IF NOT EXISTS payments (id TEXT PRIMARY KEY, proposal_id TEXT NOT NULL UNIQUE, paypal_order_id TEXT NOT NULL, paypal_capture_id TEXT NOT NULL, amount_cents INTEGER NOT NULL, status TEXT NOT NULL, mode TEXT NOT NULL DEFAULT 'sandbox_live', created_at TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS payments (id TEXT PRIMARY KEY, proposal_id TEXT NOT NULL UNIQUE, paypal_order_id TEXT NOT NULL, paypal_capture_id TEXT, approve_url TEXT, amount_cents INTEGER NOT NULL, status TEXT NOT NULL, mode TEXT NOT NULL DEFAULT 'sandbox_live', created_at TEXT NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS audit_events (id INTEGER PRIMARY KEY AUTOINCREMENT, seq INTEGER NOT NULL, project_id TEXT NOT NULL, type TEXT NOT NULL, payload_json TEXT NOT NULL, prev_hash TEXT NOT NULL, event_hash TEXT NOT NULL, created_at TEXT NOT NULL)`,
     ];
     await this.db.batch(statements.map((sql) => this.db.prepare(sql)));
@@ -225,14 +249,31 @@ export class D1Store implements StorageStore {
     await this.init();
     await this.db
       .prepare(
-        `INSERT INTO projects (id, goal_text, total_budget_cents, currency, created_at) VALUES (?, ?, ?, ?, ?)`
+        `INSERT INTO projects (id, goal_text, total_budget_cents, currency, paypal_approval_flow, created_at) VALUES (?, ?, ?, ?, ?, ?)`
       )
       .bind(
         project.id,
         project.goal_text,
         project.total_budget_cents,
         project.currency,
+        project.paypal_approval_flow ? 1 : 0,
         project.created_at
+      )
+      .run();
+    return project;
+  }
+
+  async updateProject(project: Project): Promise<Project> {
+    await this.init();
+    await this.db
+      .prepare(
+        `UPDATE projects SET goal_text = ?, total_budget_cents = ?, paypal_approval_flow = ? WHERE id = ?`
+      )
+      .bind(
+        project.goal_text,
+        project.total_budget_cents,
+        project.paypal_approval_flow ? 1 : 0,
+        project.id
       )
       .run();
     return project;
@@ -250,6 +291,7 @@ export class D1Store implements StorageStore {
       goal_text: String(row.goal_text),
       total_budget_cents: Number(row.total_budget_cents),
       currency: 'USD',
+      paypal_approval_flow: Boolean(row.paypal_approval_flow),
       created_at: String(row.created_at),
     };
   }
@@ -264,6 +306,7 @@ export class D1Store implements StorageStore {
       goal_text: String(row.goal_text),
       total_budget_cents: Number(row.total_budget_cents),
       currency: 'USD',
+      paypal_approval_flow: Boolean(row.paypal_approval_flow),
       created_at: String(row.created_at),
     }));
   }
@@ -435,17 +478,24 @@ export class D1Store implements StorageStore {
     await this.init();
     const existing = await this.getPaymentByProposal(payment.proposal_id);
     if (existing && existing.status === 'captured') {
+      if (
+        payment.status === 'captured' &&
+        existing.paypal_order_id === payment.paypal_order_id
+      ) {
+        return existing;
+      }
       throw new Error(`Proposal ${payment.proposal_id} already has a captured payment`);
     }
     await this.db
       .prepare(
-        `INSERT OR REPLACE INTO payments (id, proposal_id, paypal_order_id, paypal_capture_id, amount_cents, status, mode, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT OR REPLACE INTO payments (id, proposal_id, paypal_order_id, paypal_capture_id, approve_url, amount_cents, status, mode, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         payment.id,
         payment.proposal_id,
         payment.paypal_order_id,
-        payment.paypal_capture_id,
+        payment.paypal_capture_id ?? null,
+        payment.approve_url ?? null,
         payment.amount_cents,
         payment.status,
         payment.mode ?? 'sandbox_live',
@@ -462,13 +512,28 @@ export class D1Store implements StorageStore {
       .bind(proposalId)
       .first<Record<string, unknown>>();
     if (!row) return null;
+    return this.mapPaymentRow(row);
+  }
+
+  async getPaymentByOrderId(paypalOrderId: string): Promise<Payment | null> {
+    await this.init();
+    const row = await this.db
+      .prepare(`SELECT * FROM payments WHERE paypal_order_id = ?`)
+      .bind(paypalOrderId)
+      .first<Record<string, unknown>>();
+    if (!row) return null;
+    return this.mapPaymentRow(row);
+  }
+
+  private mapPaymentRow(row: Record<string, unknown>): Payment {
     return {
       id: String(row.id),
       proposal_id: String(row.proposal_id),
       paypal_order_id: String(row.paypal_order_id),
-      paypal_capture_id: String(row.paypal_capture_id),
+      paypal_capture_id: row.paypal_capture_id ? String(row.paypal_capture_id) : undefined,
+      approve_url: row.approve_url ? String(row.approve_url) : undefined,
       amount_cents: Number(row.amount_cents),
-      status: String(row.status) as 'created' | 'captured' | 'failed',
+      status: String(row.status) as Payment['status'],
       mode: (row.mode as 'sandbox_live' | 'sandbox_demo') ?? 'sandbox_live',
       created_at: String(row.created_at),
     };
@@ -604,6 +669,11 @@ export class KvStore implements StorageStore {
     return project;
   }
 
+  async updateProject(project: Project): Promise<Project> {
+    await this.putJson(`project:${project.id}`, project);
+    return project;
+  }
+
   async getProject(id: string): Promise<Project | null> {
     return this.getJson<Project>(`project:${id}`);
   }
@@ -697,14 +767,29 @@ export class KvStore implements StorageStore {
   async savePayment(payment: Payment): Promise<Payment> {
     const existing = await this.getPaymentByProposal(payment.proposal_id);
     if (existing && existing.status === 'captured') {
+      if (
+        payment.status === 'captured' &&
+        existing.paypal_order_id === payment.paypal_order_id
+      ) {
+        return existing;
+      }
       throw new Error(`Proposal ${payment.proposal_id} already has a captured payment`);
     }
     await this.putJson(`payment:${payment.proposal_id}`, payment);
+    await this.kv.put(`payment-by-order:${payment.paypal_order_id}`, payment.proposal_id);
     return payment;
   }
 
   async getPaymentByProposal(proposalId: string): Promise<Payment | null> {
     return this.getJson<Payment>(`payment:${proposalId}`);
+  }
+
+  async getPaymentByOrderId(paypalOrderId: string): Promise<Payment | null> {
+    const proposalId = await this.kv.get(`payment-by-order:${paypalOrderId}`);
+    if (!proposalId) return null;
+    const payment = await this.getPaymentByProposal(proposalId);
+    if (!payment || payment.paypal_order_id !== paypalOrderId) return null;
+    return payment;
   }
 
   async appendAuditEvent(

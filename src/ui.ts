@@ -489,6 +489,15 @@ export function renderAppHtml(): string {
       </div>
 
       <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <!-- Opt-in Real PayPal Buyer-Approval Redirect Flow Toggle -->
+        <label id="paypal-approval-toggle-label" style="display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.75rem; font-weight: 600; color: var(--ink-secondary); padding: 0.35rem 0.65rem; border-radius: var(--radius-md); border: 1px solid var(--border-strong); background: var(--bg-surface); cursor: pointer;">
+          <input type="checkbox" id="toggle-paypal-approval-flow" style="accent-color: var(--brand-navy); cursor: pointer;" />
+          <span>Real PayPal approval flow (sandbox buyer login required)</span>
+        </label>
+        <span id="paypal-approval-disabled-note" class="pill hidden" style="font-size: 0.7rem; color: var(--deny-ink); background: var(--deny-bg); border-color: var(--deny-border);">
+          Disabled: PayPal Sandbox credentials not configured
+        </span>
+
         <!-- Technical Details Mode Toggle -->
         <button type="button" class="btn" id="btn-toggle-tech-mode" style="font-size: 0.75rem; padding: 0.35rem 0.65rem;" title="Switch between intuitive plain-English and formula-rich technical mode">
           <span id="tech-mode-icon">💡</span>
@@ -849,7 +858,8 @@ export function renderAppHtml(): string {
         currentCatalogFilter: 'all',
         showWalkthrough: false,
         technicalMode: false,
-        modalTechExpanded: false
+        modalTechExpanded: false,
+        paypalApprovalFlow: false
       };
 
       function fmtDollars(cents) {
@@ -897,12 +907,37 @@ export function renderAppHtml(): string {
         }
       };
 
+      function syncPayPalApprovalToggleUi() {
+        const toggleEl = document.getElementById('toggle-paypal-approval-flow');
+        const labelEl = document.getElementById('paypal-approval-toggle-label');
+        const disabledNoteEl = document.getElementById('paypal-approval-disabled-note');
+        const hasCreds = Boolean(state.meta && state.meta.paypal_live_credentials_configured);
+
+        if (!hasCreds) {
+          toggleEl.checked = false;
+          toggleEl.disabled = true;
+          state.paypalApprovalFlow = false;
+          labelEl.style.opacity = '0.55';
+          labelEl.style.cursor = 'not-allowed';
+          labelEl.title = 'PayPal Sandbox credentials (PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET) are not configured on this server.';
+          disabledNoteEl.classList.remove('hidden');
+        } else {
+          toggleEl.disabled = false;
+          toggleEl.checked = Boolean(state.paypalApprovalFlow);
+          labelEl.style.opacity = '1';
+          labelEl.style.cursor = 'pointer';
+          labelEl.title = 'When enabled, PASS/Approved purchases create a real PayPal Sandbox order and return an Approve on PayPal link before capture.';
+          disabledNoteEl.classList.add('hidden');
+        }
+      }
+
       // Initialize metadata and scenarios from server
       async function initApp() {
         try {
           const res = await fetch('/api/meta');
           state.meta = await res.json();
           state.scenarios = state.meta.scenarios || [];
+          syncPayPalApprovalToggleUi();
 
           // Populate scenario dropdown
           const sel = document.getElementById('select-project-scenario');
@@ -914,6 +949,37 @@ export function renderAppHtml(): string {
             sel.appendChild(opt);
           });
 
+          // Check if returning from /paypal/return or /paypal/cancel with ?project_id=
+          const urlParams = new URLSearchParams(window.location.search);
+          const resumeProjectId = urlParams.get('project_id');
+          if (resumeProjectId) {
+            const pRes = await fetch('/api/projects/' + encodeURIComponent(resumeProjectId));
+            if (pRes.ok) {
+              const pData = await pRes.json();
+              state.project = pData.project;
+              state.mandate = pData.mandate;
+              state.paypalApprovalFlow = Boolean(pData.project && pData.project.paypal_approval_flow);
+              syncPayPalApprovalToggleUi();
+
+              const matchedScenario = state.scenarios.find(
+                sc => sc.project.goal_text === pData.project.goal_text
+              ) || state.scenarios[0];
+              if (matchedScenario) {
+                state.currentScenarioId = matchedScenario.id;
+                sel.value = matchedScenario.id;
+                state.catalog = matchedScenario.proposals || [];
+              }
+              await refreshDashboardState(state.project.id);
+              renderCatalog();
+              updateWalkthroughScenario();
+              // Expand decision history so the buyer sees their captured/cancelled order immediately
+              document.getElementById('view-evalfeed').classList.remove('hidden');
+              document.getElementById('evalfeed-chevron').textContent = '▴ Hide History';
+              showToast('Resumed project ' + state.project.id + ' from PayPal redirect!');
+              return;
+            }
+          }
+
           // Load first scenario (Shed Demo)
           await loadScenario('shed-1000');
         } catch (e) {
@@ -924,13 +990,21 @@ export function renderAppHtml(): string {
       // Load a specific scenario by ID
       async function loadScenario(scenarioId) {
         state.currentScenarioId = scenarioId;
-        const res = await fetch('/api/demo/scenario/' + scenarioId, { method: 'POST' });
+        const res = await fetch('/api/demo/scenario/' + scenarioId, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            paypal_approval_flow: Boolean(state.paypalApprovalFlow)
+          })
+        });
         const data = await res.json();
 
         state.project = data.project;
         state.mandate = data.mandate;
         state.catalog = data.proposals || [];
         state.proposals = [];
+        state.paypalApprovalFlow = Boolean(data.project && data.project.paypal_approval_flow);
+        syncPayPalApprovalToggleUi();
 
         await refreshDashboardState(state.project.id);
         renderCatalog();
@@ -953,6 +1027,8 @@ export function renderAppHtml(): string {
         state.dashboard = pData.dashboard;
         state.proposals = pData.proposals || [];
         state.auditEvents = aData.events || [];
+        state.paypalApprovalFlow = Boolean(pData.project && pData.project.paypal_approval_flow);
+        syncPayPalApprovalToggleUi();
 
         renderKPIs();
         renderCategoryEnvelopes();
@@ -981,9 +1057,16 @@ export function renderAppHtml(): string {
           
         document.getElementById('kpi-spent').textContent = fmtDollars(d.total_spent_cents);
         const pct = d.total_budget_cents > 0 ? Math.round((d.total_spent_cents / d.total_budget_cents) * 100) : 0;
-        document.getElementById('kpi-spent-pct').textContent = state.technicalMode
-          ? 'sum(payment.amount_cents): ' + d.total_spent_cents + ' (' + pct + '%)'
-          : pct + '% of total budget';
+        const pendingCents = d.total_pending_cents || 0;
+        if (state.technicalMode) {
+          document.getElementById('kpi-spent-pct').textContent =
+            'captured: ' + d.total_spent_cents + ' (' + pct + '%)' +
+            (pendingCents > 0 ? ' | pending_approval: ' + pendingCents : '');
+        } else {
+          document.getElementById('kpi-spent-pct').textContent =
+            pct + '% of total budget' +
+            (pendingCents > 0 ? ' · ' + fmtDollars(pendingCents) + ' pending approval' : '');
+        }
 
         document.getElementById('kpi-remaining').textContent = fmtDollars(d.remaining_cents);
         document.getElementById('kpi-reserve-needed').textContent = state.technicalMode
@@ -1022,6 +1105,9 @@ export function renderAppHtml(): string {
           const fillPct = cat.cap_cents > 0 ? Math.min(100, Math.round((cat.spent_cents / cat.cap_cents) * 100)) : 0;
           const isOver = cat.spent_cents > cat.cap_cents;
           const isFunded = cat.essential && cat.spent_cents > 0;
+          const pendingHtml = (cat.pending_cents && cat.pending_cents > 0)
+            ? ' <span class="pill pill-escalate" style="font-size: 0.66rem;">Pending: ' + fmtDollars(cat.pending_cents) + '</span>'
+            : '';
 
           const row = document.createElement('div');
           row.className = 'cat-card';
@@ -1032,7 +1118,7 @@ export function renderAppHtml(): string {
                 \${cat.essential ? (isFunded ? '<span class="pill pill-pass" style="font-size: 0.68rem;">✓ Funded</span>' : '<span class="pill" style="font-size: 0.68rem;">Essential</span>') : '<span class="pill" style="font-size: 0.68rem;">Backup Reserve</span>'}
               </div>
               <div class="font-mono" style="font-size: 0.8rem;">
-                Spent: <strong>\${fmtDollars(cat.spent_cents)}</strong> / Cap: <strong>\${fmtDollars(cat.cap_cents)}</strong>
+                Spent: <strong>\${fmtDollars(cat.spent_cents)}</strong> / Cap: <strong>\${fmtDollars(cat.cap_cents)}</strong>\${pendingHtml}
               </div>
             </div>
             <div class="progress-bar-bg">
@@ -1142,9 +1228,11 @@ export function renderAppHtml(): string {
         const gates = data.gates || [];
         const pay = data.payment;
         const decision = data.gate_evaluation || p.decision;
+        const isAwaitingApproval = Boolean(pay && pay.status === 'awaiting_approval');
+        const isCancelled = Boolean(pay && pay.status === 'cancelled');
         const isPass = decision === 'PASS' || decision === 'paid';
         const isDeny = decision === 'DENY';
-        const isEscalate = decision === 'ESCALATE';
+        const isEscalate = decision === 'ESCALATE' && !isAwaitingApproval;
 
         // Header and item info
         document.getElementById('eval-item-name').textContent = p.item_name;
@@ -1158,7 +1246,15 @@ export function renderAppHtml(): string {
         const vTitle = document.getElementById('eval-verdict-title');
         const vDesc = document.getElementById('eval-verdict-desc');
 
-        if (isPass) {
+        if (isAwaitingApproval) {
+          vBanner.className = 'eval-card-callout escalate';
+          vTitle.textContent = '⏳ Passed All 5 Gates — Awaiting Buyer Approval on PayPal';
+          vDesc.textContent = 'PayPal Sandbox order created! Click "Approve on PayPal (sandbox)" below to log in with the sandbox buyer account and complete capture. Spend remains pending until captured.';
+        } else if (isCancelled) {
+          vBanner.className = 'eval-card-callout escalate';
+          vTitle.textContent = '⚠️ Buyer Cancelled PayPal Approval';
+          vDesc.textContent = 'No funds were captured ($0 spent). This proposal remains eligible to be paid again.';
+        } else if (isPass) {
           vBanner.className = 'eval-card-callout pass';
           vTitle.textContent = '✅ Safe to Purchase!';
           vDesc.textContent = 'All 5 budget guardrails passed with flying colors. Order was safely created and captured via PayPal Sandbox.';
@@ -1207,7 +1303,23 @@ export function renderAppHtml(): string {
           ppNote.innerHTML = \`
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
               <span><strong>PayPal Sandbox Capture:</strong> Intent CAPTURE completed successfully.</span>
-              <span class="font-mono">Order: <strong>\${pay.paypal_order_id}</strong></span>
+              <span class="font-mono">Order: <strong>\${pay.paypal_order_id}</strong>\${pay.paypal_capture_id ? ' · Capture: <strong>' + pay.paypal_capture_id + '</strong>' : ''}</span>
+            </div>
+          \`;
+        } else if (isAwaitingApproval) {
+          ppNote.classList.remove('hidden');
+          ppNote.innerHTML = \`
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+              <span><strong>PayPal Sandbox Order Created:</strong> Awaiting buyer approval before capture.</span>
+              <span class="font-mono">Order: <strong>\${pay.paypal_order_id}</strong> · Status: <strong>awaiting_approval</strong></span>
+            </div>
+          \`;
+        } else if (isCancelled) {
+          ppNote.classList.remove('hidden');
+          ppNote.innerHTML = \`
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+              <span><strong>PayPal Order Cancelled:</strong> Buyer cancelled on PayPal Sandbox.</span>
+              <span class="font-mono">Order: <strong>\${pay.paypal_order_id}</strong> · Status: <strong>cancelled</strong></span>
             </div>
           \`;
         } else if (isDeny) {
@@ -1221,18 +1333,89 @@ export function renderAppHtml(): string {
         const actionsContainer = document.getElementById('eval-modal-actions');
         actionsContainer.innerHTML = '';
 
-        if (isEscalate) {
+        if (isAwaitingApproval && pay.approve_url) {
+          const btnApprovePayPal = document.createElement('a');
+          btnApprovePayPal.href = pay.approve_url;
+          btnApprovePayPal.target = '_blank';
+          btnApprovePayPal.rel = 'noopener noreferrer';
+          btnApprovePayPal.className = 'btn btn-primary';
+          btnApprovePayPal.style.textDecoration = 'none';
+          btnApprovePayPal.textContent = 'Approve on PayPal (sandbox) ↗';
+          actionsContainer.appendChild(btnApprovePayPal);
+
+          const btnRefresh = document.createElement('button');
+          btnRefresh.type = 'button';
+          btnRefresh.className = 'btn';
+          btnRefresh.textContent = 'Refresh Status';
+          btnRefresh.onclick = async () => {
+            await refreshDashboardState(state.project.id);
+            const updated = state.proposals.find(it => it.proposal.id === p.id);
+            if (updated) {
+              openEvaluationModal(itemSpec, {
+                proposal: updated.proposal,
+                gates: updated.gates,
+                payment: updated.payment,
+                gate_evaluation: updated.proposal.decision
+              });
+            }
+          };
+          actionsContainer.appendChild(btnRefresh);
+
+          const btnClose = document.createElement('button');
+          btnClose.type = 'button';
+          btnClose.className = 'btn';
+          btnClose.textContent = 'Close';
+          btnClose.onclick = () => modal.classList.add('hidden');
+          actionsContainer.appendChild(btnClose);
+        } else if (isCancelled) {
+          const btnRetry = document.createElement('button');
+          btnRetry.type = 'button';
+          btnRetry.className = 'btn btn-primary';
+          btnRetry.textContent = 'Retry PayPal Order';
+          btnRetry.onclick = async () => {
+            btnRetry.disabled = true;
+            btnRetry.textContent = 'Creating Order…';
+            const r = await fetch('/api/proposals/' + p.id + '/approve', { method: 'POST' });
+            const rData = await r.json();
+            await refreshDashboardState(state.project.id);
+            openEvaluationModal(itemSpec, {
+              proposal: rData.proposal || p,
+              gates: rData.gates || gates,
+              payment: rData.payment,
+              gate_evaluation: (rData.proposal && rData.proposal.decision) || p.decision
+            });
+          };
+          actionsContainer.appendChild(btnRetry);
+
+          const btnClose = document.createElement('button');
+          btnClose.type = 'button';
+          btnClose.className = 'btn';
+          btnClose.textContent = 'Close';
+          btnClose.onclick = () => modal.classList.add('hidden');
+          actionsContainer.appendChild(btnClose);
+        } else if (isEscalate) {
           const btnApprove = document.createElement('button');
           btnApprove.type = 'button';
           btnApprove.className = 'btn btn-primary';
           btnApprove.textContent = 'Approve with Backup Reserve';
           btnApprove.onclick = async () => {
             btnApprove.disabled = true;
-            btnApprove.textContent = 'Capturing…';
-            await fetch('/api/proposals/' + p.id + '/approve', { method: 'POST' });
+            btnApprove.textContent = state.paypalApprovalFlow ? 'Creating Order…' : 'Capturing…';
+            const r = await fetch('/api/proposals/' + p.id + '/approve', { method: 'POST' });
+            const rData = await r.json();
             await refreshDashboardState(state.project.id);
-            modal.classList.add('hidden');
-            showToast('Approved & captured via PayPal Sandbox!');
+            if (rData.payment && rData.payment.status === 'awaiting_approval') {
+              openEvaluationModal(itemSpec, {
+                proposal: rData.proposal || p,
+                gates: rData.gates || gates,
+                payment: rData.payment,
+                gate_evaluation: 'PASS'
+              });
+              showToast('Order created — click Approve on PayPal (sandbox)!');
+            } else {
+              modal.classList.add('hidden');
+              showToast('Approved & captured via PayPal Sandbox!');
+            }
           };
 
           const btnReject = document.createElement('button');
@@ -1278,14 +1461,22 @@ export function renderAppHtml(): string {
           const pay = item.payment;
           const isDeny = p.decision === 'DENY';
           const isPaid = p.decision === 'paid';
-          const isEscalate = p.decision === 'ESCALATE';
+          const isAwaitingApproval = Boolean(pay && pay.status === 'awaiting_approval');
+          const isCancelled = Boolean(pay && pay.status === 'cancelled');
+          const isEscalate = p.decision === 'ESCALATE' && !isAwaitingApproval;
           const failedGates = gates.filter(g => g.outcome !== 'pass');
 
           let badgeHtml = '';
           if (isPaid) badgeHtml = '<span class="pill pill-pass">PASS · PAID (PayPal Sandbox)</span>';
+          else if (isAwaitingApproval) badgeHtml = '<span class="pill pill-escalate">PASS · AWAITING PAYPAL APPROVAL</span>';
+          else if (isCancelled) badgeHtml = '<span class="pill pill-escalate">CANCELLED · RE-PAYABLE</span>';
           else if (isDeny) badgeHtml = \`<span class="pill pill-deny">DENIED · \${failedGates.length} GATES FIRED</span>\`;
           else if (isEscalate) badgeHtml = '<span class="pill pill-escalate">ESCALATE · OWNER ACTION</span>';
           else badgeHtml = '<span class="pill">' + p.decision + '</span>';
+
+          const approveLinkHtml = (isAwaitingApproval && pay.approve_url)
+            ? '<a href="' + pay.approve_url + '" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="font-size: 0.72rem; padding: 0.25rem 0.6rem; text-decoration: none;">Approve on PayPal (sandbox) ↗</a>'
+            : '';
 
           const card = document.createElement('div');
           card.className = \`eval-card \${isPaid ? 'pass' : isDeny ? 'deny' : 'escalate'}\`;
@@ -1304,11 +1495,14 @@ export function renderAppHtml(): string {
                 <div style="margin-top: 0.2rem;">\${badgeHtml}</div>
               </div>
             </div>
-            <div style="padding: 0.45rem 1.15rem; background: var(--bg-subtle); display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem;">
-              <span style="color: var(--ink-muted);">5 Deterministic Gates</span>
-              <button type="button" class="btn btn-reopen-eval-modal" data-idx="\${state.proposals.length - 1 - idx}" style="background: none; border: none; color: var(--brand-blue); font-weight: 700; cursor: pointer;">
-                View Guardrail Breakdown ↗
-              </button>
+            <div style="padding: 0.45rem 1.15rem; background: var(--bg-subtle); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; font-size: 0.75rem;">
+              <span style="color: var(--ink-muted);">5 Deterministic Gates\${pay && pay.paypal_capture_id ? ' · Capture: ' + pay.paypal_capture_id : (pay && pay.paypal_order_id ? ' · Order: ' + pay.paypal_order_id : '')}</span>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                \${approveLinkHtml}
+                <button type="button" class="btn btn-reopen-eval-modal" data-idx="\${state.proposals.length - 1 - idx}" style="background: none; border: none; color: var(--brand-blue); font-weight: 700; cursor: pointer;">
+                  View Guardrail Breakdown ↗
+                </button>
+              </div>
             </div>
           \`;
           container.appendChild(card);
@@ -1410,6 +1604,36 @@ export function renderAppHtml(): string {
 
       document.getElementById('btn-reset-scenario-data').addEventListener('click', () => {
         loadScenario(state.currentScenarioId);
+      });
+
+      // Opt-in Real PayPal Buyer-Approval Flow Toggle
+      document.getElementById('toggle-paypal-approval-flow').addEventListener('change', async (e) => {
+        const checked = Boolean(e.target.checked);
+        if (!state.meta || !state.meta.paypal_live_credentials_configured) {
+          e.target.checked = false;
+          showToast('Real PayPal approval flow requires PayPal Sandbox credentials.');
+          return;
+        }
+        state.paypalApprovalFlow = checked;
+        if (state.project) {
+          const res = await fetch('/api/projects/' + state.project.id + '/approval-flow', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paypal_approval_flow: checked })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            state.project = data.project;
+            showToast(checked
+              ? 'Enabled Real PayPal Buyer-Approval Flow for this project'
+              : 'Switched back to immediate one-click Sandbox flow');
+          } else {
+            const err = await res.json().catch(() => ({}));
+            e.target.checked = false;
+            state.paypalApprovalFlow = false;
+            showToast(err.error || 'Could not enable PayPal approval flow');
+          }
+        }
       });
 
       // Walkthrough Toggle (Hidden by default)

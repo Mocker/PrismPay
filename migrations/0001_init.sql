@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS projects (
   goal_text TEXT NOT NULL,
   total_budget_cents INTEGER NOT NULL,
   currency TEXT NOT NULL DEFAULT 'USD',
+  paypal_approval_flow INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL
 );
 
@@ -50,7 +51,8 @@ CREATE TABLE IF NOT EXISTS payments (
   id TEXT PRIMARY KEY,
   proposal_id TEXT NOT NULL UNIQUE,
   paypal_order_id TEXT NOT NULL,
-  paypal_capture_id TEXT NOT NULL,
+  paypal_capture_id TEXT,
+  approve_url TEXT,
   amount_cents INTEGER NOT NULL,
   status TEXT NOT NULL,
   mode TEXT NOT NULL DEFAULT 'sandbox_live',

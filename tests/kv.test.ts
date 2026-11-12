@@ -103,5 +103,14 @@ describe('KvStore (production persistence)', () => {
 
     await reader.updateProposalDecision(proposal.id, 'rejected');
     expect((await reader.getProposal(proposal.id))?.proposal.decision).toBe('rejected');
+
+    // Verify order-ID index lookup and project flag update across KV instances
+    const byOrder = await reader.getPaymentByOrderId('SBX-ORD-TEST');
+    expect(byOrder?.id).toBe('pay-prop-kv-1');
+    expect(byOrder?.paypal_capture_id).toBe('SBX-CAP-TEST');
+
+    await reader.updateProject({ ...project, paypal_approval_flow: true });
+    const reader2 = new KvStore(kv);
+    expect((await reader2.getProject(project.id))?.paypal_approval_flow).toBe(true);
   });
 });

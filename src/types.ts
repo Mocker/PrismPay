@@ -3,6 +3,7 @@ export interface Project {
   goal_text: string;
   total_budget_cents: number;
   currency: 'USD';
+  paypal_approval_flow?: boolean;
   created_at: string;
 }
 
@@ -81,13 +82,21 @@ export interface GateResult {
   explanation: string;
 }
 
+export type PaymentStatus =
+  | 'created'
+  | 'awaiting_approval'
+  | 'captured'
+  | 'cancelled'
+  | 'failed';
+
 export interface Payment {
   id: string;
   proposal_id: string;
   paypal_order_id: string;
-  paypal_capture_id: string;
+  paypal_capture_id?: string;
+  approve_url?: string;
   amount_cents: number;
-  status: 'created' | 'captured' | 'failed';
+  status: PaymentStatus;
   mode?: 'sandbox_live' | 'sandbox_demo';
   created_at: string;
 }
@@ -101,6 +110,7 @@ export type AuditEventType =
   | 'OWNER_OVERRIDE_APPROVED'
   | 'OWNER_OVERRIDE_REJECTED'
   | 'PAYMENT_CREATED'
+  | 'PAYMENT_BUYER_APPROVED'
   | 'PAYMENT_CAPTURED'
   | 'PAYMENT_FAILED';
 

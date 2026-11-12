@@ -26,7 +26,13 @@ import {
   SHED_DEMO_PROPOSALS,
   DEMO_SCENARIOS,
 } from './seed.ts';
-import { createAndCapturePayPalSandboxOrder, type PayPalEnvConfig } from './paypal.ts';
+import {
+  capturePayPalOrder,
+  createAndCapturePayPalSandboxOrder,
+  createPayPalOrder,
+  hasPayPalCredentials,
+  type PayPalEnvConfig,
+} from './paypal.ts';
 import {
   proposeBreakdown,
   suggestCategoryForItem,
@@ -51,6 +57,83 @@ function getStore(env?: Bindings): StorageStore {
   return fallbackMemoryStore;
 }
 
+function escapeHtmlServer(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderPayPalRedirectPage(opts: {
+  title: string;
+  badgeText: string;
+  badgeColor: 'emerald' | 'amber' | 'rose';
+  heading: string;
+  subtitle: string;
+  details: Array<{ label: string; value: string; mono?: boolean }>;
+  projectId?: string;
+}): string {
+  const colorMap = {
+    emerald: {
+      bg: 'rgba(16, 185, 129, 0.12)',
+      border: 'rgba(16, 185, 129, 0.35)',
+      text: '#34d399',
+    },
+    amber: {
+      bg: 'rgba(245, 158, 11, 0.12)',
+      border: 'rgba(245, 158, 11, 0.35)',
+      text: '#fbbf24',
+    },
+    rose: {
+      bg: 'rgba(244, 63, 94, 0.12)',
+      border: 'rgba(244, 63, 94, 0.35)',
+      text: '#fb7185',
+    },
+  }[opts.badgeColor];
+
+  const returnHref = opts.projectId
+    ? `/?project_id=${encodeURIComponent(opts.projectId)}`
+    : '/';
+
+  const detailRows = opts.details
+    .map(
+      (d) => `
+      <div style="display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid #1e293b;font-size:14px;">
+        <span style="color:#94a3b8;">${escapeHtmlServer(d.label)}</span>
+        <span style="color:#f8fafc;font-weight:600;${d.mono ? 'font-family:monospace;' : ''}">${escapeHtmlServer(d.value)}</span>
+      </div>`
+    )
+    .join('');
+
+  return `<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtmlServer(opts.title)} — PrismPay</title>
+</head>
+<body style="margin:0;min-height:100vh;background:#070b14;color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;display:flex;align-items:center;justify-content:center;padding:24px;">
+  <div style="max-width:520px;width:100%;background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:28px;box-shadow:0 20px 50px rgba(0,0,0,0.5);">
+    <div style="display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:999px;background:${colorMap.bg};border:1px solid ${colorMap.border};color:${colorMap.text};font-size:12px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;">
+      ${escapeHtmlServer(opts.badgeText)}
+    </div>
+    <h1 style="margin:16px 0 8px;font-size:22px;font-weight:700;color:#ffffff;">${escapeHtmlServer(opts.heading)}</h1>
+    <p style="margin:0 0 20px;font-size:14px;line-height:1.5;color:#94a3b8;">${escapeHtmlServer(opts.subtitle)}</p>
+    <div style="background:#090e1a;border:1px solid #1e293b;border-radius:12px;padding:6px 16px;margin-bottom:24px;">
+      ${detailRows}
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;justify-content:flex-end;">
+      <a href="${returnHref}" style="display:inline-flex;align-items:center;justify-content:center;padding:10px 18px;border-radius:10px;background:#4f46e5;color:#ffffff;font-weight:600;font-size:14px;text-decoration:none;">
+        Return to PrismPay Dashboard →
+      </a>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 export function createApp(customStore?: StorageStore) {
   const app = new Hono<{ Bindings: Bindings }>();
 
@@ -70,9 +153,7 @@ export function createApp(customStore?: StorageStore) {
   // Reference catalog & demo presets endpoint (for UI dropdowns & judge seed)
   // ===========================================================================
   app.get('/api/meta', (c) => {
-    const hasPayPalCredentials = Boolean(
-      c.env?.PAYPAL_CLIENT_ID && c.env?.PAYPAL_CLIENT_SECRET
-    );
+    const liveCreds = hasPayPalCredentials(c.env);
     return c.json({
       reference_prices: REFERENCE_PRICES,
       scenarios: DEMO_SCENARIOS,
@@ -83,7 +164,7 @@ export function createApp(customStore?: StorageStore) {
       },
       gate_config: GATE_CONFIG,
       paypal_env: 'sandbox',
-      paypal_live_credentials_configured: hasPayPalCredentials,
+      paypal_live_credentials_configured: liveCreds,
     });
   });
 
@@ -95,10 +176,12 @@ export function createApp(customStore?: StorageStore) {
     const body = await c.req.json<{
       goal_text?: string;
       total_budget_cents?: number;
+      paypal_approval_flow?: boolean;
     }>();
 
     const goal_text = (body.goal_text ?? '').trim();
     const total_budget_cents = Math.round(Number(body.total_budget_cents ?? 0));
+    const paypal_approval_flow = Boolean(body.paypal_approval_flow);
 
     if (!goal_text) {
       return c.json({ error: 'goal_text is required' }, 400);
@@ -109,12 +192,22 @@ export function createApp(customStore?: StorageStore) {
         400
       );
     }
+    if (paypal_approval_flow && !hasPayPalCredentials(c.env)) {
+      return c.json(
+        {
+          error:
+            'PAYPAL_CREDENTIALS_REQUIRED: Real PayPal buyer-approval flow requires live PayPal Sandbox credentials (PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET).',
+        },
+        400
+      );
+    }
 
     const project: Project = {
       id: `proj-${crypto.randomUUID().slice(0, 8)}`,
       goal_text,
       total_budget_cents,
       currency: 'USD',
+      paypal_approval_flow,
       created_at: new Date().toISOString(),
     };
 
@@ -124,9 +217,42 @@ export function createApp(customStore?: StorageStore) {
       goal_text: project.goal_text,
       total_budget_cents: project.total_budget_cents,
       currency: project.currency,
+      ...(paypal_approval_flow ? { paypal_approval_flow: true } : {}),
     });
 
     return c.json({ project }, 201);
+  });
+
+  // ===========================================================================
+  // POST /api/projects/:id/approval-flow — Toggle opt-in PayPal buyer-approval mode
+  // ===========================================================================
+  app.post('/api/projects/:id/approval-flow', async (c) => {
+    const store = resolveStore(c.env);
+    const projectId = c.req.param('id');
+    const project = await store.getProject(projectId);
+    if (!project) {
+      return c.json({ error: 'Project not found' }, 404);
+    }
+
+    const body = await c.req.json<{ paypal_approval_flow?: boolean }>();
+    const enabled = Boolean(body.paypal_approval_flow);
+
+    if (enabled && !hasPayPalCredentials(c.env)) {
+      return c.json(
+        {
+          error:
+            'PAYPAL_CREDENTIALS_REQUIRED: Real PayPal buyer-approval flow requires live PayPal Sandbox credentials (PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET).',
+        },
+        400
+      );
+    }
+
+    const updated: Project = {
+      ...project,
+      paypal_approval_flow: enabled,
+    };
+    await store.updateProject(updated);
+    return c.json({ project: updated });
   });
 
   // ===========================================================================
@@ -295,11 +421,15 @@ export function createApp(customStore?: StorageStore) {
       });
     }
 
-    // Aggregate spent by category from captured payments
+    // Aggregate spent by category from captured payments, and pending from awaiting_approval
     const spent_by_category_cents: Record<string, number> = {};
+    const pending_by_category_cents: Record<string, number> = {};
+    let total_pending_cents = 0;
+
     if (mandate) {
       for (const cat of mandate.categories) {
         spent_by_category_cents[cat.name] = 0;
+        pending_by_category_cents[cat.name] = 0;
       }
     }
 
@@ -308,6 +438,11 @@ export function createApp(customStore?: StorageStore) {
         const catName = item.proposal.category;
         spent_by_category_cents[catName] =
           (spent_by_category_cents[catName] ?? 0) + item.payment.amount_cents;
+      } else if (item.payment && item.payment.status === 'awaiting_approval') {
+        const catName = item.proposal.category;
+        pending_by_category_cents[catName] =
+          (pending_by_category_cents[catName] ?? 0) + item.payment.amount_cents;
+        total_pending_cents += item.payment.amount_cents;
       }
     }
 
@@ -328,10 +463,12 @@ export function createApp(customStore?: StorageStore) {
     const category_aggregates = mandate
       ? mandate.categories.map((cat) => {
           const spent_cents = spent_by_category_cents[cat.name] ?? 0;
+          const pending_cents = pending_by_category_cents[cat.name] ?? 0;
           return {
             name: cat.name,
             cap_cents: cat.cap_cents,
             spent_cents,
+            pending_cents,
             remaining_cap_cents: Math.max(0, cat.cap_cents - spent_cents),
             essential: cat.essential,
             reference_estimate_cents: cat.reference_estimate_cents,
@@ -348,6 +485,7 @@ export function createApp(customStore?: StorageStore) {
       dashboard: {
         total_budget_cents: project.total_budget_cents,
         total_spent_cents: finishability.total_spent_cents,
+        total_pending_cents,
         remaining_cents: finishability.remaining_cents,
         required_reserve_cents: finishability.required_reserve_cents,
         project_finishable: finishability.finishable,
@@ -361,7 +499,8 @@ export function createApp(customStore?: StorageStore) {
 
   // ===========================================================================
   // POST /api/projects/:id/proposals — Propose purchase + evaluate 5 gates +
-  // if PASS, create & capture PayPal sandbox order server-side (PDD §9.4 & §11)
+  // if PASS, create & capture PayPal sandbox order server-side (or create order
+  // and return approve_url when project.paypal_approval_flow is true)
   // ===========================================================================
   app.post('/api/projects/:id/proposals', async (c) => {
     const store = resolveStore(c.env);
@@ -512,48 +651,112 @@ export function createApp(customStore?: StorageStore) {
     // If DENY -> NO PayPal call is made, ever, for that proposal.
     // If ESCALATE -> awaits owner approval at POST /api/proposals/:id/approve.
     if (evaluation.decision === 'PASS') {
-      try {
-        const ppResult = await createAndCapturePayPalSandboxOrder(
-          {
+      if (project.paypal_approval_flow) {
+        // Opt-in buyer-approval redirect flow (AC-R2, AC-R6)
+        if (!hasPayPalCredentials(c.env)) {
+          paymentError =
+            'PAYPAL_CREDENTIALS_REQUIRED: Real PayPal buyer-approval flow requires live PayPal Sandbox credentials (PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET). Never faking a capture ID.';
+          await store.appendAuditEvent(project.id, 'PAYMENT_FAILED', {
             proposal_id: proposal.id,
-            project_id: project.id,
-            mandate_id: mandate.id,
             amount_cents: proposal.quoted_price_cents,
-            item_name: proposal.item_name,
-            vendor: proposal.vendor,
-            verified_decision: 'PASS',
-          },
-          c.env ?? {},
-          null
-        );
+            error: paymentError,
+            flow: 'buyer_approval',
+          });
+          return c.json(
+            {
+              error: paymentError,
+              proposal,
+              gate_evaluation: evaluation.decision,
+              reason_codes: evaluation.reason_codes,
+              gates: evaluation.gates,
+              summary: evaluation.summary,
+              payment: null,
+              payment_error: paymentError,
+            },
+            400
+          );
+        }
 
-        payment = await store.savePayment(ppResult.payment);
-        await store.updateProposalDecision(proposal.id, 'paid');
-        proposal.decision = 'paid';
+        try {
+          const orderResult = await createPayPalOrder(
+            {
+              proposal_id: proposal.id,
+              project_id: project.id,
+              mandate_id: mandate.id,
+              amount_cents: proposal.quoted_price_cents,
+              item_name: proposal.item_name,
+              vendor: proposal.vendor,
+              verified_decision: 'PASS',
+            },
+            c.env ?? {},
+            null
+          );
 
-        await store.appendAuditEvent(project.id, 'PAYMENT_CREATED', {
-          proposal_id: proposal.id,
-          payment_id: payment.id,
-          paypal_order_id: payment.paypal_order_id,
-          amount_cents: payment.amount_cents,
-        });
+          payment = await store.savePayment(orderResult.payment);
 
-        await store.appendAuditEvent(project.id, 'PAYMENT_CAPTURED', {
-          proposal_id: proposal.id,
-          payment_id: payment.id,
-          paypal_order_id: payment.paypal_order_id,
-          paypal_capture_id: payment.paypal_capture_id,
-          amount_cents: payment.amount_cents,
-          mode: payment.mode,
-        });
-      } catch (err) {
-        paymentError = err instanceof Error ? err.message : String(err);
-        await store.updateProposalDecision(proposal.id, 'PASS');
-        await store.appendAuditEvent(project.id, 'PAYMENT_FAILED', {
-          proposal_id: proposal.id,
-          amount_cents: proposal.quoted_price_cents,
-          error: paymentError,
-        });
+          await store.appendAuditEvent(project.id, 'PAYMENT_CREATED', {
+            proposal_id: proposal.id,
+            payment_id: payment.id,
+            paypal_order_id: payment.paypal_order_id,
+            amount_cents: payment.amount_cents,
+            flow: 'buyer_approval',
+            approve_url: payment.approve_url,
+          });
+        } catch (err) {
+          paymentError = err instanceof Error ? err.message : String(err);
+          await store.updateProposalDecision(proposal.id, 'PASS');
+          await store.appendAuditEvent(project.id, 'PAYMENT_FAILED', {
+            proposal_id: proposal.id,
+            amount_cents: proposal.quoted_price_cents,
+            error: paymentError,
+            flow: 'buyer_approval',
+          });
+        }
+      } else {
+        // Default flag-OFF path: untouched combined create-and-capture
+        try {
+          const ppResult = await createAndCapturePayPalSandboxOrder(
+            {
+              proposal_id: proposal.id,
+              project_id: project.id,
+              mandate_id: mandate.id,
+              amount_cents: proposal.quoted_price_cents,
+              item_name: proposal.item_name,
+              vendor: proposal.vendor,
+              verified_decision: 'PASS',
+            },
+            c.env ?? {},
+            null
+          );
+
+          payment = await store.savePayment(ppResult.payment);
+          await store.updateProposalDecision(proposal.id, 'paid');
+          proposal.decision = 'paid';
+
+          await store.appendAuditEvent(project.id, 'PAYMENT_CREATED', {
+            proposal_id: proposal.id,
+            payment_id: payment.id,
+            paypal_order_id: payment.paypal_order_id,
+            amount_cents: payment.amount_cents,
+          });
+
+          await store.appendAuditEvent(project.id, 'PAYMENT_CAPTURED', {
+            proposal_id: proposal.id,
+            payment_id: payment.id,
+            paypal_order_id: payment.paypal_order_id,
+            paypal_capture_id: payment.paypal_capture_id,
+            amount_cents: payment.amount_cents,
+            mode: payment.mode,
+          });
+        } catch (err) {
+          paymentError = err instanceof Error ? err.message : String(err);
+          await store.updateProposalDecision(proposal.id, 'PASS');
+          await store.appendAuditEvent(project.id, 'PAYMENT_FAILED', {
+            proposal_id: proposal.id,
+            amount_cents: proposal.quoted_price_cents,
+            error: paymentError,
+          });
+        }
       }
     }
 
@@ -565,6 +768,7 @@ export function createApp(customStore?: StorageStore) {
         gates: evaluation.gates,
         summary: evaluation.summary,
         payment,
+        ...(payment?.approve_url ? { approve_url: payment.approve_url } : {}),
         payment_error: paymentError,
       },
       201
@@ -572,8 +776,8 @@ export function createApp(customStore?: StorageStore) {
   });
 
   // ===========================================================================
-  // POST /api/proposals/:id/approve — Owner approves an ESCALATE proposal,
-  // then pays via PayPal Sandbox (PDD §6 Flow E & §9.4)
+  // POST /api/proposals/:id/approve — Owner approves an ESCALATE proposal
+  // (or retries a cancelled PASS/approved proposal), then pays via PayPal Sandbox
   // ===========================================================================
   app.post('/api/proposals/:id/approve', async (c) => {
     const store = resolveStore(c.env);
@@ -596,8 +800,9 @@ export function createApp(customStore?: StorageStore) {
       );
     }
 
-    if (proposal.decision === 'paid') {
-      const existingPayment = await store.getPaymentByProposal(proposal.id);
+    const existingPayment = await store.getPaymentByProposal(proposal.id);
+
+    if (proposal.decision === 'paid' && existingPayment?.status === 'captured') {
       return c.json({
         proposal,
         gates,
@@ -606,7 +811,14 @@ export function createApp(customStore?: StorageStore) {
       });
     }
 
-    if (proposal.decision !== 'ESCALATE' && proposal.decision !== 'approved') {
+    const isRetryAfterCancel =
+      proposal.decision === 'PASS' && existingPayment?.status === 'cancelled';
+
+    if (
+      proposal.decision !== 'ESCALATE' &&
+      proposal.decision !== 'approved' &&
+      !isRetryAfterCancel
+    ) {
       return c.json(
         {
           error: `Cannot approve proposal in state "${proposal.decision}". Only ESCALATE proposals can be approved.`,
@@ -615,23 +827,87 @@ export function createApp(customStore?: StorageStore) {
       );
     }
 
-    await store.updateProposalDecision(proposal.id, 'approved');
-    proposal.decision = 'approved';
+    const project = await store.getProject(proposal.project_id);
 
-    await store.appendAuditEvent(
-      proposal.project_id,
-      'OWNER_OVERRIDE_APPROVED',
-      {
-        proposal_id: proposal.id,
-        item_name: proposal.item_name,
-        quoted_price_cents: proposal.quoted_price_cents,
-        escalated_reasons: gates
-          .filter((g) => g.outcome === 'escalate')
-          .map((g) => g.reason_code),
+    if (!isRetryAfterCancel) {
+      await store.updateProposalDecision(proposal.id, 'approved');
+      proposal.decision = 'approved';
+
+      await store.appendAuditEvent(
+        proposal.project_id,
+        'OWNER_OVERRIDE_APPROVED',
+        {
+          proposal_id: proposal.id,
+          item_name: proposal.item_name,
+          quoted_price_cents: proposal.quoted_price_cents,
+          escalated_reasons: gates
+            .filter((g) => g.outcome === 'escalate')
+            .map((g) => g.reason_code),
+        }
+      );
+    }
+
+    if (project?.paypal_approval_flow) {
+      if (!hasPayPalCredentials(c.env)) {
+        const paymentError =
+          'PAYPAL_CREDENTIALS_REQUIRED: Real PayPal buyer-approval flow requires live PayPal Sandbox credentials (PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET). Never faking a capture ID.';
+        await store.appendAuditEvent(proposal.project_id, 'PAYMENT_FAILED', {
+          proposal_id: proposal.id,
+          amount_cents: proposal.quoted_price_cents,
+          error: paymentError,
+          flow: 'buyer_approval',
+        });
+        return c.json({ error: paymentError, proposal, gates }, 400);
       }
-    );
 
-    const existingPayment = await store.getPaymentByProposal(proposal.id);
+      try {
+        const orderResult = await createPayPalOrder(
+          {
+            proposal_id: proposal.id,
+            project_id: proposal.project_id,
+            mandate_id: proposal.mandate_id,
+            amount_cents: proposal.quoted_price_cents,
+            item_name: proposal.item_name,
+            vendor: proposal.vendor,
+            verified_decision: isRetryAfterCancel ? 'PASS' : 'approved',
+          },
+          c.env ?? {},
+          existingPayment
+        );
+
+        const payment = await store.savePayment(orderResult.payment);
+
+        await store.appendAuditEvent(proposal.project_id, 'PAYMENT_CREATED', {
+          proposal_id: proposal.id,
+          payment_id: payment.id,
+          paypal_order_id: payment.paypal_order_id,
+          amount_cents: payment.amount_cents,
+          flow: 'buyer_approval',
+          approve_url: payment.approve_url,
+        });
+
+        return c.json({
+          proposal,
+          gates,
+          payment,
+          approve_url: payment.approve_url,
+        });
+      } catch (err) {
+        const paymentError = err instanceof Error ? err.message : String(err);
+        if (!isRetryAfterCancel) {
+          await store.updateProposalDecision(proposal.id, 'ESCALATE');
+          proposal.decision = 'ESCALATE';
+        }
+        await store.appendAuditEvent(proposal.project_id, 'PAYMENT_FAILED', {
+          proposal_id: proposal.id,
+          amount_cents: proposal.quoted_price_cents,
+          error: paymentError,
+          flow: 'buyer_approval',
+        });
+        return c.json({ error: paymentError, proposal, gates }, 502);
+      }
+    }
+
     try {
       const ppResult = await createAndCapturePayPalSandboxOrder(
         {
@@ -679,6 +955,348 @@ export function createApp(customStore?: StorageStore) {
       });
       return c.json({ error: paymentError, proposal, gates }, 502);
     }
+  });
+
+  // ===========================================================================
+  // GET /paypal/return — Buyer approved on PayPal Sandbox; capture order (AC-R3, AC-R7)
+  // ===========================================================================
+  app.get('/paypal/return', async (c) => {
+    const store = resolveStore(c.env);
+    const orderId = (c.req.query('token') ?? c.req.query('order_id') ?? '').trim();
+    const wantsJson =
+      c.req.query('format') === 'json' ||
+      (c.req.header('Accept') ?? '').includes('application/json');
+
+    if (!orderId) {
+      if (wantsJson) {
+        return c.json({ error: 'Missing PayPal order token query parameter' }, 400);
+      }
+      return c.html(
+        renderPayPalRedirectPage({
+          title: 'Missing Order Token',
+          badgeText: 'Invalid Return Link',
+          badgeColor: 'rose',
+          heading: 'Missing PayPal Order Token',
+          subtitle: 'No ?token=<order_id> parameter was provided on the return URL.',
+          details: [],
+        }),
+        400
+      );
+    }
+
+    const payment = await store.getPaymentByOrderId(orderId);
+    if (!payment) {
+      if (wantsJson) {
+        return c.json({ error: `Payment for PayPal order ${orderId} not found` }, 404);
+      }
+      return c.html(
+        renderPayPalRedirectPage({
+          title: 'Order Not Found',
+          badgeText: 'Order Not Found',
+          badgeColor: 'rose',
+          heading: 'PayPal Order Not Found',
+          subtitle: `Could not locate a PrismPay payment record for order ${orderId}.`,
+          details: [{ label: 'PayPal Order ID', value: orderId, mono: true }],
+        }),
+        404
+      );
+    }
+
+    const found = await store.getProposal(payment.proposal_id);
+    if (!found) {
+      if (wantsJson) {
+        return c.json({ error: `Proposal ${payment.proposal_id} not found` }, 404);
+      }
+      return c.html(
+        renderPayPalRedirectPage({
+          title: 'Proposal Not Found',
+          badgeText: 'Proposal Not Found',
+          badgeColor: 'rose',
+          heading: 'Proposal Record Not Found',
+          subtitle: `Could not locate proposal ${payment.proposal_id}.`,
+          details: [{ label: 'PayPal Order ID', value: orderId, mono: true }],
+        }),
+        404
+      );
+    }
+
+    const { proposal } = found;
+
+    // AC-R7 Idempotency: if already captured, do not double-capture or duplicate audit events
+    if (payment.status === 'captured' && payment.paypal_capture_id) {
+      if (wantsJson) {
+        return c.json({
+          status: 'captured',
+          already_captured: true,
+          payment,
+          proposal,
+        });
+      }
+      return c.html(
+        renderPayPalRedirectPage({
+          title: 'Payment Captured',
+          badgeText: 'Payment Captured',
+          badgeColor: 'emerald',
+          heading: 'Payment captured — return to PrismPay',
+          subtitle:
+            'This PayPal Sandbox order has already been captured and recorded on the hash-chained audit ledger.',
+          details: [
+            { label: 'Item', value: proposal.item_name },
+            { label: 'Vendor', value: proposal.vendor },
+            {
+              label: 'Amount',
+              value: `$${(payment.amount_cents / 100).toFixed(2)} USD`,
+            },
+            { label: 'PayPal Order ID', value: payment.paypal_order_id, mono: true },
+            {
+              label: 'PayPal Capture ID',
+              value: payment.paypal_capture_id,
+              mono: true,
+            },
+          ],
+          projectId: proposal.project_id,
+        })
+      );
+    }
+
+    try {
+      const captureResult = await capturePayPalOrder(orderId, c.env ?? {});
+      const capturedPayment: Payment = {
+        ...payment,
+        paypal_capture_id: captureResult.capture_id,
+        status: 'captured',
+        mode: 'sandbox_live',
+      };
+
+      await store.savePayment(capturedPayment);
+      await store.updateProposalDecision(proposal.id, 'paid');
+      proposal.decision = 'paid';
+
+      await store.appendAuditEvent(proposal.project_id, 'PAYMENT_BUYER_APPROVED', {
+        proposal_id: proposal.id,
+        payment_id: capturedPayment.id,
+        paypal_order_id: capturedPayment.paypal_order_id,
+        amount_cents: capturedPayment.amount_cents,
+        flow: 'buyer_approval',
+      });
+
+      await store.appendAuditEvent(proposal.project_id, 'PAYMENT_CAPTURED', {
+        proposal_id: proposal.id,
+        payment_id: capturedPayment.id,
+        paypal_order_id: capturedPayment.paypal_order_id,
+        paypal_capture_id: capturedPayment.paypal_capture_id,
+        amount_cents: capturedPayment.amount_cents,
+        mode: capturedPayment.mode,
+        flow: 'buyer_approval',
+      });
+
+      if (wantsJson) {
+        return c.json({
+          status: 'captured',
+          already_captured: captureResult.already_captured,
+          payment: capturedPayment,
+          proposal,
+        });
+      }
+
+      return c.html(
+        renderPayPalRedirectPage({
+          title: 'Payment Captured',
+          badgeText: 'Payment Captured',
+          badgeColor: 'emerald',
+          heading: 'Payment captured — return to PrismPay',
+          subtitle:
+            'Buyer approval verified and PayPal Orders v2 capture completed. Your project budget and cryptographic audit trail have been updated.',
+          details: [
+            { label: 'Item', value: proposal.item_name },
+            { label: 'Vendor', value: proposal.vendor },
+            {
+              label: 'Amount',
+              value: `$${(capturedPayment.amount_cents / 100).toFixed(2)} USD`,
+            },
+            {
+              label: 'PayPal Order ID',
+              value: capturedPayment.paypal_order_id,
+              mono: true,
+            },
+            {
+              label: 'PayPal Capture ID',
+              value: capturedPayment.paypal_capture_id ?? '',
+              mono: true,
+            },
+          ],
+          projectId: proposal.project_id,
+        })
+      );
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      await store.appendAuditEvent(proposal.project_id, 'PAYMENT_FAILED', {
+        proposal_id: proposal.id,
+        payment_id: payment.id,
+        paypal_order_id: payment.paypal_order_id,
+        amount_cents: payment.amount_cents,
+        error: errorMsg,
+        flow: 'buyer_approval',
+      });
+
+      if (wantsJson) {
+        return c.json({ error: errorMsg, payment, proposal }, 502);
+      }
+
+      return c.html(
+        renderPayPalRedirectPage({
+          title: 'Capture Failed',
+          badgeText: 'Capture Failed',
+          badgeColor: 'rose',
+          heading: 'PayPal Capture Failed',
+          subtitle: errorMsg,
+          details: [
+            { label: 'Item', value: proposal.item_name },
+            { label: 'PayPal Order ID', value: payment.paypal_order_id, mono: true },
+          ],
+          projectId: proposal.project_id,
+        }),
+        502
+      );
+    }
+  });
+
+  // ===========================================================================
+  // GET /paypal/cancel — Buyer cancelled on PayPal Sandbox (AC-R4)
+  // ===========================================================================
+  app.get('/paypal/cancel', async (c) => {
+    const store = resolveStore(c.env);
+    const orderId = (c.req.query('token') ?? c.req.query('order_id') ?? '').trim();
+    const wantsJson =
+      c.req.query('format') === 'json' ||
+      (c.req.header('Accept') ?? '').includes('application/json');
+
+    if (!orderId) {
+      if (wantsJson) {
+        return c.json({ error: 'Missing PayPal order token query parameter' }, 400);
+      }
+      return c.html(
+        renderPayPalRedirectPage({
+          title: 'Missing Order Token',
+          badgeText: 'Invalid Cancel Link',
+          badgeColor: 'rose',
+          heading: 'Missing PayPal Order Token',
+          subtitle: 'No ?token=<order_id> parameter was provided on the cancel URL.',
+          details: [],
+        }),
+        400
+      );
+    }
+
+    const payment = await store.getPaymentByOrderId(orderId);
+    if (!payment) {
+      if (wantsJson) {
+        return c.json({ error: `Payment for PayPal order ${orderId} not found` }, 404);
+      }
+      return c.html(
+        renderPayPalRedirectPage({
+          title: 'Order Not Found',
+          badgeText: 'Order Not Found',
+          badgeColor: 'rose',
+          heading: 'PayPal Order Not Found',
+          subtitle: `Could not locate a PrismPay payment record for order ${orderId}.`,
+          details: [{ label: 'PayPal Order ID', value: orderId, mono: true }],
+        }),
+        404
+      );
+    }
+
+    const found = await store.getProposal(payment.proposal_id);
+    if (!found) {
+      if (wantsJson) {
+        return c.json({ error: `Proposal ${payment.proposal_id} not found` }, 404);
+      }
+      return c.html(
+        renderPayPalRedirectPage({
+          title: 'Proposal Not Found',
+          badgeText: 'Proposal Not Found',
+          badgeColor: 'rose',
+          heading: 'Proposal Record Not Found',
+          subtitle: `Could not locate proposal ${payment.proposal_id}.`,
+          details: [{ label: 'PayPal Order ID', value: orderId, mono: true }],
+        }),
+        404
+      );
+    }
+
+    const { proposal } = found;
+
+    if (payment.status === 'captured') {
+      if (wantsJson) {
+        return c.json({ error: 'Payment is already captured and cannot be cancelled', payment }, 409);
+      }
+      return c.html(
+        renderPayPalRedirectPage({
+          title: 'Already Captured',
+          badgeText: 'Already Captured',
+          badgeColor: 'emerald',
+          heading: 'Payment already captured — return to PrismPay',
+          subtitle: 'This order was already captured and cannot be cancelled.',
+          details: [
+            { label: 'PayPal Order ID', value: payment.paypal_order_id, mono: true },
+            { label: 'PayPal Capture ID', value: payment.paypal_capture_id ?? '', mono: true },
+          ],
+          projectId: proposal.project_id,
+        }),
+        409
+      );
+    }
+
+    let cancelledPayment = payment;
+    if (payment.status !== 'cancelled') {
+      cancelledPayment = {
+        ...payment,
+        status: 'cancelled',
+      };
+      await store.savePayment(cancelledPayment);
+      await store.appendAuditEvent(proposal.project_id, 'PAYMENT_FAILED', {
+        proposal_id: proposal.id,
+        payment_id: cancelledPayment.id,
+        paypal_order_id: cancelledPayment.paypal_order_id,
+        amount_cents: cancelledPayment.amount_cents,
+        reason: 'buyer_cancelled',
+        flow: 'buyer_approval',
+      });
+    }
+
+    if (wantsJson) {
+      return c.json({
+        status: 'cancelled',
+        payment: cancelledPayment,
+        proposal,
+      });
+    }
+
+    return c.html(
+      renderPayPalRedirectPage({
+        title: 'Payment Cancelled',
+        badgeText: 'Buyer Cancelled',
+        badgeColor: 'amber',
+        heading: 'PayPal approval cancelled — return to PrismPay',
+        subtitle:
+          'No funds were captured and your project budget is unchanged. This proposal remains eligible to be paid again.',
+        details: [
+          { label: 'Item', value: proposal.item_name },
+          { label: 'Vendor', value: proposal.vendor },
+          {
+            label: 'Amount',
+            value: `$${(cancelledPayment.amount_cents / 100).toFixed(2)} USD`,
+          },
+          {
+            label: 'PayPal Order ID',
+            value: cancelledPayment.paypal_order_id,
+            mono: true,
+          },
+          { label: 'Status', value: 'Cancelled (Re-payable)' },
+        ],
+        projectId: proposal.project_id,
+      })
+    );
   });
 
   // ===========================================================================
@@ -769,14 +1387,26 @@ export function createApp(customStore?: StorageStore) {
   app.post('/api/demo/shed', async (c) => {
     const store = resolveStore(c.env);
     const body = await c.req
-      .json<{ sign_immediately?: boolean }>()
-      .catch(() => ({ sign_immediately: false }));
+      .json<{ sign_immediately?: boolean; paypal_approval_flow?: boolean }>()
+      .catch(() => ({ sign_immediately: false, paypal_approval_flow: false }));
+
+    const paypal_approval_flow = Boolean(body.paypal_approval_flow);
+    if (paypal_approval_flow && !hasPayPalCredentials(c.env)) {
+      return c.json(
+        {
+          error:
+            'PAYPAL_CREDENTIALS_REQUIRED: Real PayPal buyer-approval flow requires live PayPal Sandbox credentials (PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET).',
+        },
+        400
+      );
+    }
 
     const project: Project = {
       id: `proj-${crypto.randomUUID().slice(0, 8)}`,
       goal_text: SHED_DEMO_PROJECT.goal_text,
       total_budget_cents: SHED_DEMO_PROJECT.total_budget_cents,
       currency: 'USD',
+      paypal_approval_flow,
       created_at: new Date().toISOString(),
     };
 
@@ -786,6 +1416,7 @@ export function createApp(customStore?: StorageStore) {
       goal_text: project.goal_text,
       total_budget_cents: project.total_budget_cents,
       currency: project.currency,
+      ...(paypal_approval_flow ? { paypal_approval_flow: true } : {}),
     });
 
     const categories = SHED_DEMO_CATEGORIES.map((cat) => ({ ...cat }));
@@ -846,12 +1477,27 @@ export function createApp(customStore?: StorageStore) {
     const store = resolveStore(c.env);
     const scenarioId = c.req.param('id');
     const scenario = DEMO_SCENARIOS.find((s) => s.id === scenarioId) ?? DEMO_SCENARIOS[0];
+    const body = await c.req
+      .json<{ paypal_approval_flow?: boolean }>()
+      .catch(() => ({ paypal_approval_flow: false }));
+
+    const paypal_approval_flow = Boolean(body.paypal_approval_flow);
+    if (paypal_approval_flow && !hasPayPalCredentials(c.env)) {
+      return c.json(
+        {
+          error:
+            'PAYPAL_CREDENTIALS_REQUIRED: Real PayPal buyer-approval flow requires live PayPal Sandbox credentials (PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET).',
+        },
+        400
+      );
+    }
 
     const project: Project = {
       id: `proj-${scenario.id}-${crypto.randomUUID().slice(0, 6)}`,
       goal_text: scenario.project.goal_text,
       total_budget_cents: scenario.project.total_budget_cents,
       currency: 'USD',
+      paypal_approval_flow,
       created_at: new Date().toISOString(),
     };
 
@@ -862,6 +1508,7 @@ export function createApp(customStore?: StorageStore) {
       total_budget_cents: project.total_budget_cents,
       currency: project.currency,
       scenario_id: scenario.id,
+      ...(paypal_approval_flow ? { paypal_approval_flow: true } : {}),
     });
 
     const categories = scenario.categories.map((cat) => ({ ...cat }));
