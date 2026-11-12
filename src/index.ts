@@ -7,7 +7,7 @@ import type {
   Project,
   Proposal,
 } from './types.ts';
-import { D1Store, MemoryStore, type StorageStore } from './storage.ts';
+import { D1Store, KvStore, MemoryStore, type StorageStore } from './storage.ts';
 import {
   computeMandateHash,
   verifyAuditChain,
@@ -36,11 +36,15 @@ import { renderAppHtml } from './ui.ts';
 
 export interface Bindings extends PayPalEnvConfig, AIBreakdownEnv {
   DB?: D1Database;
+  KV?: KVNamespace;
 }
 
 const fallbackMemoryStore = new MemoryStore();
 
 function getStore(env?: Bindings): StorageStore {
+  if (env?.KV) {
+    return new KvStore(env.KV);
+  }
   if (env?.DB) {
     return new D1Store(env.DB);
   }

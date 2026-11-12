@@ -572,3 +572,167 @@ export class D1Store implements StorageStore {
     };
   }
 }
+
+/**
+ * Cloudflare KV persistent store.
+ * Deploy fix (2026-11-11): the Workers runtime recycles isolates, so the
+ * in-memory fallback loses projects between requests in production, and the
+ * available API token has no D1 permission. KV is the persistent store the
+ * current token can provision. One JSON value per entity, plus small index
+ * keys for per-project proposal lists and the active-mandate pointer.
+ */
+export class KvStore implements StorageStore {
+  private kv: KVNamespace;
+
+  constructor(kv: KVNamespace) {
+    this.kv = kv;
+  }
+
+  async init(): Promise<void> {}
+
+  private async getJson<T>(key: string): Promise<T | null> {
+    const raw = await this.kv.get(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  }
+
+  private async putJson(key: string, value: unknown): Promise<void> {
+    await this.kv.put(key, JSON.stringify(value));
+  }
+
+  async createProject(project: Project): Promise<Project> {
+    await this.putJson(`project:${project.id}`, project);
+    return project;
+  }
+
+  async getProject(id: string): Promise<Project | null> {
+    return this.getJson<Project>(`project:${id}`);
+  }
+
+  async listProjects(): Promise<Project[]> {
+    const listed = await this.kv.list({ prefix: 'project:' });
+    const projects: Project[] = [];
+    for (const key of listed.keys) {
+      const p = await this.getJson<Project>(key.name);
+      if (p) projects.push(p);
+    }
+    return projects.sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 25);
+  }
+
+  async saveMandate(mandate: Mandate): Promise<Mandate> {
+    const activeId = await this.kv.get(`mandate-active:${mandate.project_id}`);
+    if (activeId && activeId !== mandate.id) {
+      const prev = await this.getJson<Mandate>(`mandate:${activeId}`);
+      if (prev && prev.status === 'active') {
+        await this.putJson(`mandate:${activeId}`, { ...prev, status: 'superseded' });
+      }
+    }
+    await this.putJson(`mandate:${mandate.id}`, mandate);
+    await this.kv.put(`mandate-active:${mandate.project_id}`, mandate.id);
+    return mandate;
+  }
+
+  async getActiveMandate(projectId: string): Promise<Mandate | null> {
+    const activeId = await this.kv.get(`mandate-active:${projectId}`);
+    if (!activeId) return null;
+    const m = await this.getJson<Mandate>(`mandate:${activeId}`);
+    return m && m.status === 'active' ? m : null;
+  }
+
+  async tamperMandateCategories(
+    mandateId: string,
+    tamperedCategories: BudgetCategory[]
+  ): Promise<void> {
+    const existing = await this.getJson<Mandate>(`mandate:${mandateId}`);
+    if (existing) {
+      await this.putJson(`mandate:${mandateId}`, { ...existing, categories: tamperedCategories });
+    }
+  }
+
+  async saveProposal(proposal: Proposal, gates: GateResult[]): Promise<void> {
+    await this.putJson(`proposal:${proposal.id}`, { proposal, gates });
+    const indexKey = `proposals-by-project:${proposal.project_id}`;
+    const ids = (await this.getJson<string[]>(indexKey)) ?? [];
+    if (!ids.includes(proposal.id)) {
+      ids.push(proposal.id);
+      await this.putJson(indexKey, ids);
+    }
+  }
+
+  async getProposal(
+    proposalId: string
+  ): Promise<{ proposal: Proposal; gates: GateResult[] } | null> {
+    return this.getJson<{ proposal: Proposal; gates: GateResult[] }>(`proposal:${proposalId}`);
+  }
+
+  async listProposals(
+    projectId: string
+  ): Promise<Array<{ proposal: Proposal; gates: GateResult[]; payment: Payment | null }>> {
+    const ids = (await this.getJson<string[]>(`proposals-by-project:${projectId}`)) ?? [];
+    const results: Array<{ proposal: Proposal; gates: GateResult[]; payment: Payment | null }> = [];
+    for (const id of ids) {
+      const entry = await this.getProposal(id);
+      if (!entry) continue;
+      results.push({
+        proposal: entry.proposal,
+        gates: entry.gates,
+        payment: await this.getPaymentByProposal(id),
+      });
+    }
+    return results.sort((a, b) => a.proposal.created_at.localeCompare(b.proposal.created_at));
+  }
+
+  async updateProposalDecision(
+    proposalId: string,
+    decision: ProposalDecision
+  ): Promise<void> {
+    const entry = await this.getProposal(proposalId);
+    if (entry) {
+      await this.putJson(`proposal:${proposalId}`, {
+        ...entry,
+        proposal: { ...entry.proposal, decision },
+      });
+    }
+  }
+
+  async savePayment(payment: Payment): Promise<Payment> {
+    const existing = await this.getPaymentByProposal(payment.proposal_id);
+    if (existing && existing.status === 'captured') {
+      throw new Error(`Proposal ${payment.proposal_id} already has a captured payment`);
+    }
+    await this.putJson(`payment:${payment.proposal_id}`, payment);
+    return payment;
+  }
+
+  async getPaymentByProposal(proposalId: string): Promise<Payment | null> {
+    return this.getJson<Payment>(`payment:${proposalId}`);
+  }
+
+  async appendAuditEvent(
+    projectId: string,
+    type: AuditEventType,
+    payload: Record<string, unknown>,
+    createdAt?: string
+  ): Promise<AuditEvent> {
+    const existing = await this.listAuditEvents(projectId);
+    const seq = existing.length + 1;
+    const prev_hash = seq === 1 ? 'GENESIS' : existing[existing.length - 1].event_hash;
+    const created_at = createdAt ?? new Date().toISOString();
+    const event_hash = await computeAuditEventHash(prev_hash, seq, type, payload, created_at);
+    const event: AuditEvent = {
+      seq,
+      project_id: projectId,
+      type,
+      payload,
+      prev_hash,
+      event_hash,
+      created_at,
+    };
+    existing.push(event);
+    await this.putJson(`audit:${projectId}`, existing);
+    return event;
+  }
+
+  async listAuditEvents(projectId: string): Promise<AuditEvent[]> {
+    return (await this.getJson<AuditEvent[]>(`audit:${projectId}`)) ?? [];
+  }
+}
