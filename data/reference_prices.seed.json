@@ -1,1 +1,347 @@
-{"currency":"USD","items":[{"category":"Foundation & site prep","item_id":"foundation-kit","name":"Concrete blocks, gravel and slab materials","note":"Small shed footprint, materials only","reference_high_cents":15000,"reference_low_cents":9500,"reference_median_cents":12000,"unit":"lot"},{"category":"Framing lumber & panels","item_id":"framing-lumber-package","name":"Framing lumber package","note":"Studs, plates and sheathing panels for an 8x10 shed","reference_high_cents":34500,"reference_low_cents":26000,"reference_median_cents":30000,"unit":"lot"},{"category":"Roofing","item_id":"roofing-standard-kit","name":"Standard metal roofing kit","note":"Corrugated panels, flashing and fixings","reference_high_cents":20500,"reference_low_cents":15000,"reference_median_cents":17500,"unit":"kit"},{"category":"Roofing","item_id":"roofing-premium-package","name":"Premium designer roofing package","note":"Same functional job as roofing-standard-kit; used by the demo's overpriced trap proposal, quoted at $920 in the scenario","reference_high_cents":20500,"reference_low_cents":15000,"reference_median_cents":17500,"unit":"kit"},{"category":"Doors, windows & hardware","item_id":"shed-door","name":"Single shed door, pre-hung","note":"Basic ledged door with frame","reference_high_cents":14000,"reference_low_cents":8500,"reference_median_cents":11000,"unit":"each"},{"category":"Doors, windows & hardware","item_id":"hinges-latch-set","name":"Hinges and latch set","note":"Heavy-duty T-hinges, padlock latch","reference_high_cents":5200,"reference_low_cents":3000,"reference_median_cents":4000,"unit":"set"},{"category":"Doors, windows & hardware","item_id":"shed-window","name":"Small shed window","note":"Fixed acrylic window with frame","reference_high_cents":8500,"reference_low_cents":5000,"reference_median_cents":6500,"unit":"each"},{"category":"Fasteners & consumables","item_id":"fasteners-consumables","name":"Screws, nails and consumables","note":"Structural screws, nails, sealant, blades","reference_high_cents":9500,"reference_low_cents":6000,"reference_median_cents":7500,"unit":"lot"}],"note":"Curated planning estimates for the PrismPay demo, seeded 2026-11-11. These are illustrative figures for gate testing and the demo scenario, NOT live market data. Gate G4 compares quoted prices against reference_median_cents only."}
+{
+  "currency": "USD",
+  "note": "Curated planning estimates for PrismPay project scenarios, seeded 2026-11-11. These are illustrative figures for gate testing across multiple project types (parts & labor), NOT live market data. Gate G4 compares quoted prices against reference_median_cents only.",
+  "items": [
+    {
+      "item_id": "foundation-kit",
+      "name": "Concrete blocks, gravel and slab materials",
+      "category": "Foundation & site prep",
+      "reference_median_cents": 12000,
+      "reference_low_cents": 9500,
+      "reference_high_cents": 15000,
+      "unit": "lot",
+      "type": "part",
+      "note": "Small shed footprint, materials only"
+    },
+    {
+      "item_id": "foundation-labor",
+      "name": "Excavation, grading & block leveling labor",
+      "category": "Foundation & site prep",
+      "reference_median_cents": 9000,
+      "reference_low_cents": 7000,
+      "reference_high_cents": 12000,
+      "unit": "job",
+      "type": "labor",
+      "note": "Subcontractor site prep and base leveling"
+    },
+    {
+      "item_id": "framing-lumber-package",
+      "name": "Framing lumber package",
+      "category": "Framing lumber & panels",
+      "reference_median_cents": 30000,
+      "reference_low_cents": 26000,
+      "reference_high_cents": 34500,
+      "unit": "lot",
+      "type": "part",
+      "note": "Studs, plates and sheathing panels for an 8x10 shed"
+    },
+    {
+      "item_id": "framing-labor",
+      "name": "Rough carpentry framing labor",
+      "category": "Framing lumber & panels",
+      "reference_median_cents": 15000,
+      "reference_low_cents": 12000,
+      "reference_high_cents": 19000,
+      "unit": "job",
+      "type": "labor",
+      "note": "Carpenter framing wall assemblies and trusses"
+    },
+    {
+      "item_id": "roofing-standard-kit",
+      "name": "Standard metal roofing kit",
+      "category": "Roofing",
+      "reference_median_cents": 17500,
+      "reference_low_cents": 15000,
+      "reference_high_cents": 20500,
+      "unit": "kit",
+      "type": "part",
+      "note": "Corrugated panels, flashing and fixings"
+    },
+    {
+      "item_id": "roofing-premium-package",
+      "name": "Premium designer roofing package",
+      "category": "Roofing",
+      "reference_median_cents": 17500,
+      "reference_low_cents": 15000,
+      "reference_high_cents": 20500,
+      "unit": "kit",
+      "type": "part",
+      "note": "Same functional job as roofing-standard-kit; used by the demo's overpriced trap proposal, quoted at $920 in the scenario"
+    },
+    {
+      "item_id": "roofing-shingles-kit",
+      "name": "Architectural asphalt shingles package",
+      "category": "Roofing",
+      "reference_median_cents": 14000,
+      "reference_low_cents": 11500,
+      "reference_high_cents": 16500,
+      "unit": "lot",
+      "type": "part",
+      "note": "3 bundles of 30-year architectural shingles and starter strip"
+    },
+    {
+      "item_id": "shed-door",
+      "name": "Single shed door, pre-hung",
+      "category": "Doors, windows & hardware",
+      "reference_median_cents": 11000,
+      "reference_low_cents": 8500,
+      "reference_high_cents": 14000,
+      "unit": "each",
+      "type": "part",
+      "note": "Basic ledged door with frame"
+    },
+    {
+      "item_id": "hinges-latch-set",
+      "name": "Hinges and latch set",
+      "category": "Doors, windows & hardware",
+      "reference_median_cents": 4000,
+      "reference_low_cents": 3000,
+      "reference_high_cents": 5200,
+      "unit": "set",
+      "type": "part",
+      "note": "Heavy-duty T-hinges, padlock latch"
+    },
+    {
+      "item_id": "shed-window",
+      "name": "Small shed window",
+      "category": "Doors, windows & hardware",
+      "reference_median_cents": 6500,
+      "reference_low_cents": 5000,
+      "reference_high_cents": 8500,
+      "unit": "each",
+      "type": "part",
+      "note": "Fixed acrylic window with frame"
+    },
+    {
+      "item_id": "fasteners-consumables",
+      "name": "Screws, nails and consumables",
+      "category": "Fasteners & consumables",
+      "reference_median_cents": 7500,
+      "reference_low_cents": 6000,
+      "reference_high_cents": 9500,
+      "unit": "lot",
+      "type": "part",
+      "note": "Structural screws, nails, sealant, blades"
+    },
+    {
+      "item_id": "kitchen-cabinets-rta",
+      "name": "Shaker base & wall RTA cabinet suite",
+      "category": "Cabinetry & Storage",
+      "reference_median_cents": 105000,
+      "reference_low_cents": 85000,
+      "reference_high_cents": 125000,
+      "unit": "suite",
+      "type": "part",
+      "note": "Plywood box ready-to-assemble 5-cabinet kitchen set"
+    },
+    {
+      "item_id": "kitchen-cabinets-luxury-trap",
+      "name": "Custom hand-carved mahogany cabinet suite",
+      "category": "Cabinetry & Storage",
+      "reference_median_cents": 105000,
+      "reference_low_cents": 85000,
+      "reference_high_cents": 125000,
+      "unit": "suite",
+      "type": "part",
+      "note": "Trap proposal: Quoted at $2,950 against a $3,500 total kitchen budget"
+    },
+    {
+      "item_id": "kitchen-cabinet-labor",
+      "name": "Cabinet assembly & precision wall hang labor",
+      "category": "Cabinetry & Storage",
+      "reference_median_cents": 30000,
+      "reference_low_cents": 24000,
+      "reference_high_cents": 38000,
+      "unit": "job",
+      "type": "labor",
+      "note": "Finish carpenter cabinet leveling and secure installation"
+    },
+    {
+      "item_id": "countertop-butcherblock",
+      "name": "Solid maple butcherblock countertop slab",
+      "category": "Countertops",
+      "reference_median_cents": 36000,
+      "reference_low_cents": 29000,
+      "reference_high_cents": 44000,
+      "unit": "slab",
+      "type": "part",
+      "note": "8-foot mineral-oiled edge-grain hard maple slab"
+    },
+    {
+      "item_id": "countertop-quartz",
+      "name": "Engineered quartz prefabricated slab",
+      "category": "Countertops",
+      "reference_median_cents": 58000,
+      "reference_low_cents": 48000,
+      "reference_high_cents": 68000,
+      "unit": "slab",
+      "type": "part",
+      "note": "Non-porous stain-resistant quartz with bevel edge"
+    },
+    {
+      "item_id": "countertop-install-labor",
+      "name": "Countertop cut, sink cutout & installation labor",
+      "category": "Countertops",
+      "reference_median_cents": 22000,
+      "reference_low_cents": 18000,
+      "reference_high_cents": 28000,
+      "unit": "job",
+      "type": "labor",
+      "note": "Precision template, cut, scribe, and adhesive install"
+    },
+    {
+      "item_id": "sink-faucet-combo",
+      "name": "Undermount stainless deep sink & pull-down faucet",
+      "category": "Plumbing & Fixtures",
+      "reference_median_cents": 28000,
+      "reference_low_cents": 22000,
+      "reference_high_cents": 35000,
+      "unit": "combo",
+      "type": "part",
+      "note": "16-gauge 304 stainless sink with commercial spring faucet"
+    },
+    {
+      "item_id": "plumbing-hookup-labor",
+      "name": "Certified plumber PEX supply & PVC drain hookup",
+      "category": "Plumbing & Fixtures",
+      "reference_median_cents": 24000,
+      "reference_low_cents": 19000,
+      "reference_high_cents": 31000,
+      "unit": "job",
+      "type": "labor",
+      "note": "Licensed plumber connection to shutoffs, trap, and vent"
+    },
+    {
+      "item_id": "compact-appliances-set",
+      "name": "Induction 2-burner cooktop & 10 cu.ft refrigerator",
+      "category": "Appliances & Ventilation",
+      "reference_median_cents": 70000,
+      "reference_low_cents": 58000,
+      "reference_high_cents": 82000,
+      "unit": "bundle",
+      "type": "part",
+      "note": "Drop-in glass cooktop and apartment-size quiet refrigerator"
+    },
+    {
+      "item_id": "luxury-appliances-trap",
+      "name": "Commercial 6-burner brass range suite",
+      "category": "Appliances & Ventilation",
+      "reference_median_cents": 70000,
+      "reference_low_cents": 58000,
+      "reference_high_cents": 82000,
+      "unit": "suite",
+      "type": "part",
+      "note": "Trap proposal: Quoted at $2,700 against kitchen budget"
+    },
+    {
+      "item_id": "electrical-subcontract-labor",
+      "name": "Electrician 20A dedicated circuit & GFCI install",
+      "category": "Electrical & Lighting",
+      "reference_median_cents": 18000,
+      "reference_low_cents": 14000,
+      "reference_high_cents": 24000,
+      "unit": "job",
+      "type": "labor",
+      "note": "Code-compliant GFCI countertop outlets and panel breaker"
+    },
+    {
+      "item_id": "led-undercabinet-lighting",
+      "name": "Dimmable warm LED under-cabinet strip kit",
+      "category": "Electrical & Lighting",
+      "reference_median_cents": 14000,
+      "reference_low_cents": 10000,
+      "reference_high_cents": 18000,
+      "unit": "kit",
+      "type": "part",
+      "note": "High CRI diffused task lighting with wireless dimmer"
+    },
+    {
+      "item_id": "printers-corexy-duo",
+      "name": "Dual high-speed enclosed CoreXY 3D printers",
+      "category": "3D Printers & Core Tools",
+      "reference_median_cents": 80000,
+      "reference_low_cents": 68000,
+      "reference_high_cents": 92000,
+      "unit": "pair",
+      "type": "part",
+      "note": "High-temp 300C dual printer setup with auto-bed leveling"
+    },
+    {
+      "item_id": "printers-industrial-trap",
+      "name": "Industrial 5-axis laser sintering metal 3D printer",
+      "category": "3D Printers & Core Tools",
+      "reference_median_cents": 80000,
+      "reference_low_cents": 68000,
+      "reference_high_cents": 92000,
+      "unit": "unit",
+      "type": "part",
+      "note": "Trap proposal: Quoted at $1,850 against $2,000 maker studio budget"
+    },
+    {
+      "item_id": "maker-workbench",
+      "name": "Heavy-duty steel workbench with power strip",
+      "category": "Workstations & Enclosures",
+      "reference_median_cents": 34000,
+      "reference_low_cents": 28000,
+      "reference_high_cents": 41000,
+      "unit": "bench",
+      "type": "part",
+      "note": "1,000 lb capacity adjustable height solid wood top"
+    },
+    {
+      "item_id": "bench-assembly-labor",
+      "name": "Studio bench assembly & equipment anchoring labor",
+      "category": "Workstations & Enclosures",
+      "reference_median_cents": 12000,
+      "reference_low_cents": 9000,
+      "reference_high_cents": 16000,
+      "unit": "job",
+      "type": "labor",
+      "note": "Anti-vibration leveling and acoustic dampening install"
+    },
+    {
+      "item_id": "fume-filtration-system",
+      "name": "HEPA & activated carbon fume extraction system",
+      "category": "Air Filtration & Ventilation",
+      "reference_median_cents": 26000,
+      "reference_low_cents": 21000,
+      "reference_high_cents": 32000,
+      "unit": "system",
+      "type": "part",
+      "note": "VOC and ultra-fine particle scrubber with flexible ducting"
+    },
+    {
+      "item_id": "vent-installation-labor",
+      "name": "Exterior wall duct coring & sealed damper labor",
+      "category": "Air Filtration & Ventilation",
+      "reference_median_cents": 14000,
+      "reference_low_cents": 11000,
+      "reference_high_cents": 18000,
+      "unit": "job",
+      "type": "labor",
+      "note": "Core drilled 4-inch exterior vent with storm damper"
+    },
+    {
+      "item_id": "filament-spools-bundle",
+      "name": "10-spool engineering PLA & PETG filament bundle",
+      "category": "Filament, Resin & Consumables",
+      "reference_median_cents": 18000,
+      "reference_low_cents": 14000,
+      "reference_high_cents": 22000,
+      "unit": "bundle",
+      "type": "part",
+      "note": "Vacuum-sealed 1kg spools with desiccant and nozzle pack"
+    },
+    {
+      "item_id": "titanium-hotend-upgrade",
+      "name": "Hardened titanium bi-metal hotend upgrade kit",
+      "category": "Filament, Resin & Consumables",
+      "reference_median_cents": 5000,
+      "reference_low_cents": 3500,
+      "reference_high_cents": 6200,
+      "unit": "kit",
+      "type": "part",
+      "note": "Escalation test: Quoted at $68 vs $50 reference (1.36x)"
+    }
+  ]
+}

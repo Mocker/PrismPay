@@ -24,6 +24,7 @@ import {
   SHED_DEMO_CATEGORIES,
   SHED_DEMO_PROJECT,
   SHED_DEMO_PROPOSALS,
+  DEMO_SCENARIOS,
 } from './seed.ts';
 import { createAndCapturePayPalSandboxOrder, type PayPalEnvConfig } from './paypal.ts';
 import {
@@ -70,6 +71,7 @@ export function createApp(customStore?: StorageStore) {
     );
     return c.json({
       reference_prices: REFERENCE_PRICES,
+      scenarios: DEMO_SCENARIOS,
       shed_demo: {
         project: SHED_DEMO_PROJECT,
         categories: SHED_DEMO_CATEGORIES,
@@ -828,6 +830,82 @@ export function createApp(customStore?: StorageStore) {
         categories,
         mandate,
         seeded_proposals: SHED_DEMO_PROPOSALS,
+      },
+      201
+    );
+  });
+
+  // ===========================================================================
+  // POST /api/demo/scenario/:id — Load any pre-configured scenario (Shed, Kitchen, Maker)
+  // ===========================================================================
+  app.post('/api/demo/scenario/:id', async (c) => {
+    const store = resolveStore(c.env);
+    const scenarioId = c.req.param('id');
+    const scenario = DEMO_SCENARIOS.find((s) => s.id === scenarioId) ?? DEMO_SCENARIOS[0];
+
+    const project: Project = {
+      id: `proj-${scenario.id}-${crypto.randomUUID().slice(0, 6)}`,
+      goal_text: scenario.project.goal_text,
+      total_budget_cents: scenario.project.total_budget_cents,
+      currency: 'USD',
+      created_at: new Date().toISOString(),
+    };
+
+    await store.createProject(project);
+    await store.appendAuditEvent(project.id, 'PROJECT_CREATED', {
+      project_id: project.id,
+      goal_text: project.goal_text,
+      total_budget_cents: project.total_budget_cents,
+      currency: project.currency,
+      scenario_id: scenario.id,
+    });
+
+    const categories = scenario.categories.map((cat) => ({ ...cat }));
+    await store.appendAuditEvent(project.id, 'BREAKDOWN_PROPOSED', {
+      project_id: project.id,
+      source: 'scenario_seed',
+      model_used: 'prismpay-planner-v1',
+      category_count: categories.length,
+      total_budget_cents: project.total_budget_cents,
+      categories,
+    });
+
+    const sha256_hash = await computeMandateHash({
+      project_id: project.id,
+      version: 1,
+      total_budget_cents: project.total_budget_cents,
+      categories,
+    });
+
+    const mandate: Mandate = {
+      id: `mnd-${crypto.randomUUID().slice(0, 8)}`,
+      project_id: project.id,
+      version: 1,
+      categories,
+      total_budget_cents: project.total_budget_cents,
+      owner_label: `Owner (${scenario.name})`,
+      sha256_hash,
+      signed_at: new Date().toISOString(),
+      status: 'active',
+    };
+
+    await store.saveMandate(mandate);
+    await store.appendAuditEvent(project.id, 'MANDATE_SIGNED', {
+      mandate_id: mandate.id,
+      version: mandate.version,
+      owner_label: mandate.owner_label,
+      total_budget_cents: mandate.total_budget_cents,
+      sha256_hash: mandate.sha256_hash,
+      categories: mandate.categories,
+    });
+
+    return c.json(
+      {
+        scenario,
+        project,
+        categories,
+        mandate,
+        proposals: scenario.proposals,
       },
       201
     );
