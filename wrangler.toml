@@ -5,6 +5,13 @@ compatibility_date = "2025-02-01"
 [vars]
 PAYPAL_ENV = "sandbox"
 
+# KV persistence (production store — see src/storage.ts KvStore).
+# The in-memory fallback loses data between Worker isolates; D1 remains
+# supported in code but the current API token cannot provision D1.
+[[kv_namespaces]]
+binding = "KV"
+id = "24e54d3a38b7419ba84a5977f0312144"
+
 # Optional Cloudflare D1 binding:
 # To bind a remote D1 database in production, uncomment and set your database_id:
 # [[d1_databases]]
