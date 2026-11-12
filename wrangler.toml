@@ -19,6 +19,6 @@ id = "24e54d3a38b7419ba84a5977f0312144"
 # database_name = "prismpay-db"
 # database_id = "replace-with-your-d1-database-id"
 
-# Optional Cloudflare Workers AI binding:
-# [ai]
-# binding = "AI"
+# Cloudflare Workers AI binding (live breakdown planner — src/ai.ts):
+[ai]
+binding = "AI"
