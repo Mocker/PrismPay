@@ -91,7 +91,9 @@ npm run deploy
 
 ## AI Tools & Honesty Disclosure
 
-- **PayPal Sandbox Only:** All payments execute against the PayPal Sandbox (`api-m.sandbox.paypal.com/v2/checkout/orders` or pre-approved sandbox demo receipts when credentials are omitted). No real money moves.
+- **PayPal Sandbox Only:** All payments execute against the PayPal Sandbox (`api-m.sandbox.paypal.com/v2/checkout/orders`). No real money moves. Two completion paths exist:
+  - **Default path (what the demo video shows):** the order is created and captured server-side as soon as a proposal passes the gates or the owner approves an escalation. With live sandbox credentials configured, the order is a real sandbox order; there is no buyer in this loop, so PayPal declines the capture step (`ORDER_NOT_APPROVED`) and the Worker records a sandbox receipt that references the real order ID rather than pretending the capture succeeded. If credentials are omitted, no PayPal call is made and the payment is recorded as a clearly-labelled `sandbox_demo` receipt.
+  - **Opt-in buyer-approval flow (per-project toggle, default OFF; added after the demo video was recorded):** the standard PayPal redirect — the order is created with return/cancel URLs, the buyer approves on PayPal's site, and capture happens for real on return. The amount counts as *pending*, not spent, until capture completes; cancelling leaves the proposal re-payable. The flow requires sandbox credentials and stays disabled without them.
 - **Curated Planning Estimates:** Reference prices in [`data/reference_prices.seed.json`](data/reference_prices.seed.json) are curated planning estimates for the demo scenario, not live-scraped market data.
 - **AI Tools Used:**
   - **Runtime:** AI is used in [`src/ai.ts`](src/ai.ts) (`proposeBreakdown` and `suggestCategoryForItem`) to draft initial project budget allocations and suggest categories for manual items, with schema validation and a deterministic fallback.
