@@ -178,72 +178,52 @@ export function renderAppHtml(): string {
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      justify-content: center;
       gap: 0.4rem;
-      transition: all 0.15s ease;
-      text-decoration: none;
+      transition: all 0.15s ease-in-out;
+      line-height: 1.2;
     }
-    .btn:hover:not(:disabled) {
+    .btn:hover {
       background: var(--bg-subtle);
       border-color: var(--ink-muted);
-    }
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
     }
     .btn-primary {
       background: var(--brand-navy);
       color: white;
       border-color: var(--brand-navy);
     }
-    .btn-primary:hover:not(:disabled) {
+    .btn-primary:hover {
       background: #002266;
       border-color: #002266;
     }
+    .btn-pass {
+      background: var(--pass);
+      color: white;
+      border-color: var(--pass);
+    }
     .btn-active-toggle {
-      background: #f0fdf4;
-      border-color: #86efac;
-      color: #166534;
+      background: #e0f2fe;
+      border-color: #7dd3fc;
+      color: #0369a1;
       font-weight: 700;
     }
 
-    /* Main Dashboard Layout */
+    /* Dashboard Layout */
     .dashboard-container {
       max-width: 1300px;
-      width: 100%;
       margin: 0 auto;
       padding: 1.5rem;
       flex: 1;
       display: flex;
       flex-direction: column;
       gap: 1.5rem;
+      width: 100%;
     }
 
-    /* Judge Walkthrough Drawer (Hidden by default) */
-    .walkthrough-drawer {
-      background: linear-gradient(to right, #f8fafc, #f0fdf4);
-      border: 1px solid #bbf7d0;
-      border-radius: var(--radius-lg);
-      padding: 1rem 1.25rem;
-      box-shadow: var(--shadow-sm);
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      animation: fadeIn 0.2s ease-out;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* KPI Grid */
+    /* Top KPI Row */
     .kpi-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 1rem;
-    }
-    @media (max-width: 860px) {
-      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
     }
     .kpi-box {
       background: var(--bg-surface);
@@ -351,71 +331,63 @@ export function renderAppHtml(): string {
       align-items: center;
       justify-content: space-between;
       gap: 1rem;
-      transition: all 0.15s ease;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
     .catalog-item:hover {
-      border-color: var(--brand-blue);
+      border-color: var(--border-strong);
       box-shadow: var(--shadow-sm);
     }
     .catalog-item.trap {
-      border-color: #fecaca;
+      border-left: 4px solid var(--deny);
       background: #fffafa;
     }
 
-    /* Evaluated Proposals */
+    /* Evaluated Decisions Cards */
     .eval-card {
       background: var(--bg-surface);
       border: 1px solid var(--border-subtle);
       border-radius: var(--radius-md);
-      margin-bottom: 0.85rem;
       overflow: hidden;
-      box-shadow: var(--shadow-sm);
+      margin-bottom: 0.75rem;
     }
     .eval-card.pass { border-left: 4px solid var(--pass); }
     .eval-card.deny { border-left: 4px solid var(--deny); }
     .eval-card.escalate { border-left: 4px solid var(--escalate); }
 
     .eval-card-header {
-      padding: 0.9rem 1.15rem;
+      padding: 0.85rem 1.15rem;
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 0.75rem;
-      flex-wrap: wrap;
+      background: var(--bg-surface);
     }
     .eval-card-callout {
-      padding: 0.75rem 1.15rem;
-      font-size: 0.82rem;
-      border-top: 1px solid var(--border-subtle);
-      border-bottom: 1px solid var(--border-subtle);
+      padding: 0.65rem 1.15rem;
+      font-size: 0.8rem;
     }
-    .eval-card-callout.deny { background: var(--deny-bg); color: var(--deny-ink); }
     .eval-card-callout.pass { background: var(--pass-bg); color: var(--pass-ink); }
+    .eval-card-callout.deny { background: var(--deny-bg); color: var(--deny-ink); }
     .eval-card-callout.escalate { background: var(--escalate-bg); color: var(--escalate-ink); }
 
-    .eval-gate-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.78rem;
+    .eval-gate-check-box {
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 0.9rem;
+      background: var(--bg-surface);
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
     }
-    .eval-gate-table th, .eval-gate-table td {
-      padding: 0.5rem 0.85rem;
-      text-align: left;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-    .eval-gate-table th {
-      background: var(--bg-subtle);
-      color: var(--ink-muted);
-      font-weight: 700;
-      text-transform: uppercase;
-      font-size: 0.7rem;
-    }
+    .eval-gate-check-box.pass { border-left: 3px solid var(--pass); }
+    .eval-gate-check-box.deny { border-left: 3px solid var(--deny); }
+    .eval-gate-check-box.escalate { border-left: 3px solid var(--escalate); }
 
     /* Modal Dialog */
     .modal-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(15, 23, 42, 0.5);
+      background: rgba(15, 23, 42, 0.55);
       backdrop-filter: blur(4px);
       z-index: 100;
       display: flex;
@@ -430,7 +402,7 @@ export function renderAppHtml(): string {
       box-shadow: var(--shadow-lg);
       width: 100%;
       max-width: 740px;
-      max-height: 85vh;
+      max-height: 88vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -480,14 +452,14 @@ export function renderAppHtml(): string {
             <span>PrismPay</span>
             <span class="pill pill-paypal">PayPal Sandbox Orders v2</span>
           </div>
-          <p style="font-size: 0.74rem; color: var(--ink-muted);">Fiduciary allowance gate for AI purchasing agents</p>
+          <p style="font-size: 0.74rem; color: var(--ink-muted);">Budget-aware fiduciary allowance gate for AI purchasing agents</p>
         </div>
       </a>
 
       <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
         <!-- Walkthrough Toggle Button (Hidden by default) -->
         <button type="button" class="btn" id="btn-toggle-walkthrough" style="font-size: 0.78rem;">
-          <span>⚡ Guided Walkthrough</span>
+          <span>⚖️ Guided Walkthrough</span>
           <span style="font-size: 0.72rem; color: var(--ink-muted);" id="walkthrough-toggle-state">[Off]</span>
         </button>
 
@@ -516,9 +488,14 @@ export function renderAppHtml(): string {
         </span>
       </div>
 
-      <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+        <!-- Technical Details Mode Toggle -->
+        <button type="button" class="btn" id="btn-toggle-tech-mode" style="font-size: 0.75rem; padding: 0.35rem 0.65rem;" title="Switch between intuitive plain-English and formula-rich technical mode">
+          <span id="tech-mode-icon">💡</span>
+          <span id="tech-mode-label">Mode: Plain English</span>
+        </button>
         <button type="button" class="btn" id="btn-reset-scenario-data" style="font-size: 0.75rem; padding: 0.35rem 0.65rem;">
-          Reset Scenario State
+          Reset Scenario
         </button>
       </div>
     </div>
@@ -528,7 +505,7 @@ export function renderAppHtml(): string {
   <main class="dashboard-container">
 
     <!-- Guided Walkthrough Drawer (Hidden by default, toggled via header) -->
-    <section id="walkthrough-drawer" class="walkthrough-drawer hidden" aria-label="Guided Judge Walkthrough">
+    <section id="walkthrough-drawer" class="walkthrough-drawer hidden" aria-label="Guided Judge Walkthrough" style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: var(--radius-lg); padding: 1rem 1.25rem;">
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
         <div>
           <div style="font-size: 0.86rem; font-weight: 800; color: #166534; display: flex; align-items: center; gap: 0.4rem;">
@@ -559,28 +536,28 @@ export function renderAppHtml(): string {
     <!-- Top KPI Grid: Instant Financial Visibility -->
     <section class="kpi-grid">
       <div class="kpi-box">
-        <div class="kpi-label">Total Mandate Budget</div>
+        <div class="kpi-label">Total Project Budget</div>
         <div class="kpi-value" id="kpi-total-budget">$1,000</div>
         <div class="kpi-sub" id="kpi-goal-title">Goal: Build a shed</div>
       </div>
       <div class="kpi-box">
-        <div class="kpi-label">PayPal Captured</div>
+        <div class="kpi-label">PayPal Captured Spend</div>
         <div class="kpi-value" style="color: var(--pass);" id="kpi-spent">$0</div>
-        <div class="kpi-sub" id="kpi-spent-pct">0% captured</div>
+        <div class="kpi-sub" id="kpi-spent-pct">0% of total budget</div>
       </div>
       <div class="kpi-box">
         <div class="kpi-label">Remaining Spendable</div>
         <div class="kpi-value" id="kpi-remaining">$1,000</div>
-        <div class="kpi-sub" id="kpi-reserve-needed">Essential reserve: $810</div>
+        <div class="kpi-sub" id="kpi-reserve-needed">Essential reserve needed: $810</div>
       </div>
       <div class="kpi-box">
-        <div class="kpi-label">Project Finishable? (G5)</div>
+        <div class="kpi-label">Can Project Finish?</div>
         <div class="kpi-value" style="color: var(--pass);" id="kpi-finishable">YES — INTACT</div>
-        <div class="kpi-sub" id="kpi-finishable-sub">All essential reserves fundable</div>
+        <div class="kpi-sub" id="kpi-finishable-sub">All essential categories fundable</div>
       </div>
     </section>
 
-    <!-- Main Cockpit: Left Envelopes & Right Purchasing Engine -->
+    <!-- Main Cockpit: Left Envelopes & Right Procurement Catalog -->
     <div class="cockpit-grid">
       
       <!-- LEFT COLUMN: Category Allowance Envelopes -->
@@ -588,7 +565,7 @@ export function renderAppHtml(): string {
         <div class="card-header">
           <div>
             <h2 class="card-title">Category Allowance Envelopes</h2>
-            <p class="card-desc">Signed cryptographic caps. Spending in each envelope updates live.</p>
+            <p class="card-desc">Budget allocations for this project. Spending updates automatically with each purchase.</p>
           </div>
           <button type="button" class="btn" id="btn-edit-envelope-dialog" style="font-size: 0.75rem; padding: 0.35rem 0.65rem;">
             Edit Envelopes
@@ -598,50 +575,45 @@ export function renderAppHtml(): string {
         <div id="category-envelopes-list"></div>
 
         <div style="margin-top: 1rem; padding-top: 0.85rem; border-top: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; font-size: 0.76rem; color: var(--ink-muted);">
-          <span>Fiduciary Invariant: Sum equals budget</span>
+          <span id="envelope-footer-note">Backup Reserve (Contingency): 10% protected</span>
           <span class="font-mono" id="envelope-sha-indicator">SHA-256 locked</span>
         </div>
       </section>
 
-      <!-- RIGHT COLUMN: Interactive Agent Purchasing Engine -->
+      <!-- RIGHT COLUMN: Procurement Catalog (Items list is shown prominently first) -->
       <section class="card" style="display: flex; flex-direction: column; gap: 1rem;">
         <div class="card-header" style="margin-bottom: 0;">
           <div>
-            <h2 class="card-title">Agent Purchasing Engine</h2>
-            <p class="card-desc">Propose parts and labor quotes. Evaluated against 5 gates before PayPal capture.</p>
+            <h2 class="card-title">Parts &amp; Labor Procurement Catalog</h2>
+            <p class="card-desc">Browse pre-priced items and contractor quotes. Testing an item runs our 5 security checks before PayPal is called.</p>
           </div>
-          <div style="display: flex; gap: 0.4rem;">
-            <button type="button" class="btn btn-primary" id="tab-btn-catalog" style="font-size: 0.75rem; padding: 0.35rem 0.65rem;">
-              Parts &amp; Labor Catalog
-            </button>
-            <button type="button" class="btn" id="tab-btn-evalfeed" style="font-size: 0.75rem; padding: 0.35rem 0.65rem;">
-              Decision Feed (<span id="feed-count-badge">0</span>)
-            </button>
-          </div>
+          <button type="button" class="btn btn-primary" id="btn-open-custom-quote-dialog" style="font-size: 0.75rem; padding: 0.35rem 0.65rem;">
+            + Custom Proposal
+          </button>
         </div>
 
-        <!-- VIEW 1: Available Proposals Catalog (Default) -->
-        <div id="view-catalog" class="space-y-3">
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
-            <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;" id="catalog-filter-bar">
-              <button type="button" class="btn btn-active-toggle btn-filter" data-type="all" style="font-size: 0.72rem; padding: 0.25rem 0.55rem;">All</button>
-              <button type="button" class="btn btn-filter" data-type="part" style="font-size: 0.72rem; padding: 0.25rem 0.55rem;">Parts / Materials</button>
-              <button type="button" class="btn btn-filter" data-type="labor" style="font-size: 0.72rem; padding: 0.25rem 0.55rem;">Labor / Subcontracts</button>
-              <button type="button" class="btn btn-filter" data-type="trap" style="font-size: 0.72rem; padding: 0.25rem 0.55rem; color: #dc2626;">Traps &amp; Tests</button>
-            </div>
-            <button type="button" class="btn" id="btn-open-custom-quote-dialog" style="font-size: 0.75rem; padding: 0.3rem 0.65rem;">
-              + Custom Proposal
-            </button>
-          </div>
-
-          <div id="catalog-items-container" class="catalog-grid"></div>
+        <!-- Filter Bar -->
+        <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;" id="catalog-filter-bar">
+          <button type="button" class="btn btn-active-toggle btn-filter" data-type="all" style="font-size: 0.72rem; padding: 0.25rem 0.55rem;">All Items</button>
+          <button type="button" class="btn btn-filter" data-type="part" style="font-size: 0.72rem; padding: 0.25rem 0.55rem;">Parts / Materials</button>
+          <button type="button" class="btn btn-filter" data-type="labor" style="font-size: 0.72rem; padding: 0.25rem 0.55rem;">Labor / Subcontracts</button>
+          <button type="button" class="btn btn-filter" data-type="trap" style="font-size: 0.72rem; padding: 0.25rem 0.55rem; color: #dc2626;">Traps &amp; Tests</button>
         </div>
 
-        <!-- VIEW 2: Evaluated Purchases Decision Feed (Hidden by default) -->
-        <div id="view-evalfeed" class="hidden space-y-3">
-          <div id="eval-items-container">
-            <div style="padding: 2rem; text-align: center; color: var(--ink-muted); font-size: 0.82rem;">
-              No proposals evaluated yet for this project. Propose items from the catalog to see 5-gate decisions.
+        <!-- Items Container (Directly visible; no gates cluttering above!) -->
+        <div id="catalog-items-container" class="catalog-grid"></div>
+
+        <!-- Collapsible Evaluated Decisions Stream -->
+        <div style="border-top: 1px solid var(--border-subtle); padding-top: 0.75rem; margin-top: 0.25rem;">
+          <button type="button" class="btn" id="btn-toggle-evalfeed" style="width: 100%; justify-content: space-between; font-size: 0.78rem;">
+            <span>📜 Recent Evaluated Purchases (<span id="feed-count-badge">0</span>)</span>
+            <span id="evalfeed-chevron">▾ Show History</span>
+          </button>
+          <div id="view-evalfeed" class="hidden" style="margin-top: 0.75rem;">
+            <div id="eval-items-container">
+              <div style="padding: 1.5rem; text-align: center; color: var(--ink-muted); font-size: 0.8rem;">
+                No proposals evaluated yet. Click "Evaluate Item →" above to start testing!
+              </div>
             </div>
           </div>
         </div>
@@ -653,8 +625,8 @@ export function renderAppHtml(): string {
     <section class="card">
       <div class="card-header">
         <div>
-          <h2 class="card-title">Append-Only Hash-Chained Audit Trail</h2>
-          <p class="card-desc">Every mandate, proposal evaluation, and PayPal Sandbox capture linked via SHA-256.</p>
+          <h2 class="card-title">Tamper-Evident Audit Ledger</h2>
+          <p class="card-desc">Every mandate, proposal evaluation, and PayPal Sandbox capture linked via cryptographic SHA-256 hashes.</p>
         </div>
         <div style="display: flex; align-items: center; gap: 0.6rem;">
           <span class="pill pill-pass" id="audit-chain-badge">Chain: Verified OK</span>
@@ -667,6 +639,74 @@ export function renderAppHtml(): string {
     </section>
 
   </main>
+
+  <!-- Evaluation Flow Modal (Displayed when evaluating items) -->
+  <div id="eval-flow-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal-window" style="max-width: 680px;">
+      <div class="modal-top">
+        <div>
+          <h3 style="font-size: 1rem; font-weight: 800; display: flex; align-items: center; gap: 0.45rem;">
+            <span>🛡️ PrismPay Security &amp; Value Check</span>
+          </h3>
+          <p style="font-size: 0.75rem; color: var(--ink-muted); margin-top: 0.15rem;" id="eval-modal-subtitle">
+            Evaluating proposed purchase against active project mandate
+          </p>
+        </div>
+        <button type="button" class="btn" id="btn-close-eval-modal" style="font-size: 0.75rem; padding: 0.25rem 0.55rem;">✕ Close</button>
+      </div>
+
+      <div class="modal-content-area" style="display: flex; flex-direction: column; gap: 1rem;">
+        <!-- Item Info Card -->
+        <div style="background: var(--bg-subtle); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.85rem 1rem; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 0.45rem;">
+              <strong style="font-size: 0.95rem; color: var(--ink-primary);" id="eval-item-name">Item Name</strong>
+              <span class="pill" id="eval-item-cat">Category</span>
+              <span class="pill" id="eval-item-type">Part</span>
+            </div>
+            <div style="font-size: 0.76rem; color: var(--ink-muted); margin-top: 0.2rem;" id="eval-item-meta">
+              Vendor · Quoted Price
+            </div>
+          </div>
+          <div class="font-mono font-bold" style="font-size: 1.25rem; color: var(--ink-primary);" id="eval-item-price">
+            $0.00
+          </div>
+        </div>
+
+        <!-- Verdict Banner -->
+        <div id="eval-verdict-banner" class="eval-card-callout pass">
+          <div style="font-weight: 800; font-size: 0.92rem;" id="eval-verdict-title">✓ Safe to Purchase!</div>
+          <div style="font-size: 0.78rem; margin-top: 0.2rem;" id="eval-verdict-desc">
+            All 5 budget guardrails passed. Order was safely created and captured via PayPal Sandbox.
+          </div>
+        </div>
+
+        <!-- The 5 Friendly Guardrail Checks -->
+        <div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+            <h4 style="font-size: 0.84rem; font-weight: 700; color: var(--ink-primary);">The 5 Fiduciary Guardrail Checks</h4>
+            <button type="button" class="btn" id="btn-toggle-modal-tech-details" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">
+              <span id="modal-tech-label">🔬 Show Technical Details ▾</span>
+            </button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 0.5rem;" id="eval-five-checks-container">
+            <!-- Dynamically populated 5 checks -->
+          </div>
+        </div>
+
+        <!-- PayPal Sandbox Execution Note -->
+        <div id="eval-paypal-note" style="background: var(--brand-light); border: 1px solid #bfdbfe; border-radius: var(--radius-md); padding: 0.75rem 1rem; font-size: 0.78rem; color: var(--brand-navy);">
+          <!-- PayPal details -->
+        </div>
+      </div>
+
+      <!-- Modal Footer Actions -->
+      <div style="padding: 0.85rem 1.25rem; border-top: 1px solid var(--border-subtle); background: var(--bg-surface); display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;" id="eval-modal-actions">
+        <!-- Dynamic Buttons -->
+      </div>
+    </div>
+  </div>
 
   <!-- Technical Spec & Flow Modal -->
   <div id="tech-modal" class="modal-backdrop hidden">
@@ -710,7 +750,7 @@ export function renderAppHtml(): string {
             <li><strong>G1 Total Cap:</strong> <code>total_spent + quote > total_budget</code> → <code>DENY (TOTAL_CAP_EXCEEDED)</code>.</li>
             <li><strong>G2 Category Cap:</strong> Exceeds category cap. If overflow fits in unused contingency, downgrades to <code>ESCALATE (CONTINGENCY_DRAW)</code>; otherwise <code>DENY</code>.</li>
             <li><strong>G3 Proportionality:</strong> <code>quote / total_budget > 0.50</code> → <code>DENY (SINGLE_ITEM_DOMINANCE)</code>; <code>0.30–0.50</code> → <code>ESCALATE</code>.</li>
-            <li><strong>G4 Value for Money:</strong> Compares quote against curated reference median. <code>ratio > 1.50</code> → <code>DENY (PRICE_NOT_VALUE_FOR_MONEY)</code>; <code>1.15–1.50</code> → <code>ESCALATE</code>; unpriced items → <code>ESCALATE (NO_REFERENCE_PRICE)</code>.</li>
+            <li><strong>G4 Value for Money:</strong> Compares quote against curated reference median. <code>ratio > 1.50</code> → <code>DENY (PRICE_NOT_VALUE_FOR_MONEY)</code>; <code>1.15–1.50</code> → <code>ESCALATE</code>.</li>
             <li><strong>G5 Forward Coherence:</strong> Verifies remaining budget covers required reserves for unfinished essential categories. If <code>remaining_after < required_reserve</code> → <code>DENY (PROJECT_LEFT_UNFINISHABLE)</code>.</li>
           </ul>
         </div>
@@ -758,32 +798,32 @@ export function renderAppHtml(): string {
       <form id="form-custom-quote-dialog" style="padding: 1.2rem; display: flex; flex-direction: column; gap: 0.85rem; font-size: 0.82rem;">
         <div>
           <label class="block font-semibold mb-1">Item or Service Name</label>
-          <input type="text" id="dlg-item-name" class="w-full p-2 border rounded" placeholder="e.g. Custom stainless worktable" required style="border: 1px solid var(--border-strong);" />
+          <input type="text" id="dlg-item-name" class="w-full p-2 border rounded" placeholder="e.g. Custom stainless worktable" required style="border: 1px solid var(--border-strong); width: 100%; border-radius: 6px; padding: 6px 10px;" />
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
           <div>
             <label class="block font-semibold mb-1">Category</label>
-            <select id="dlg-category" class="w-full p-2 border rounded" style="border: 1px solid var(--border-strong);"></select>
+            <select id="dlg-category" class="w-full p-2 border rounded" style="border: 1px solid var(--border-strong); width: 100%; border-radius: 6px; padding: 6px;"></select>
           </div>
           <div>
             <label class="block font-semibold mb-1">Quoted Price ($ USD)</label>
-            <input type="number" id="dlg-price" class="w-full p-2 border rounded font-mono" value="85" min="1" step="1" required style="border: 1px solid var(--border-strong);" />
+            <input type="number" id="dlg-price" class="w-full p-2 border rounded font-mono" value="85" min="1" step="1" required style="border: 1px solid var(--border-strong); width: 100%; border-radius: 6px; padding: 6px 10px;" />
           </div>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
           <div>
             <label class="block font-semibold mb-1">Vendor Name</label>
-            <input type="text" id="dlg-vendor" class="w-full p-2 border rounded" value="Metro Supply Co." required style="border: 1px solid var(--border-strong);" />
+            <input type="text" id="dlg-vendor" class="w-full p-2 border rounded" value="Metro Supply Co." required style="border: 1px solid var(--border-strong); width: 100%; border-radius: 6px; padding: 6px 10px;" />
           </div>
           <div>
             <label class="block font-semibold mb-1">Type</label>
-            <select id="dlg-type" class="w-full p-2 border rounded" style="border: 1px solid var(--border-strong);">
+            <select id="dlg-type" class="w-full p-2 border rounded" style="border: 1px solid var(--border-strong); width: 100%; border-radius: 6px; padding: 6px;">
               <option value="part">Part / Material</option>
               <option value="labor">Labor / Subcontract</option>
             </select>
           </div>
         </div>
-        <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem; padding: 0.6rem;">
+        <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem; padding: 0.6rem; justify-content: center;">
           Evaluate Against Active Mandate
         </button>
       </form>
@@ -807,7 +847,9 @@ export function renderAppHtml(): string {
         catalog: [],
         auditEvents: [],
         currentCatalogFilter: 'all',
-        showWalkthrough: false
+        showWalkthrough: false,
+        technicalMode: false,
+        modalTechExpanded: false
       };
 
       function fmtDollars(cents) {
@@ -825,6 +867,35 @@ export function renderAppHtml(): string {
         clearTimeout(window.__tTimer);
         window.__tTimer = setTimeout(() => t.classList.add('hidden'), 3800);
       }
+
+      // Friendly gate definitions
+      const GATE_META = {
+        G1_TOTAL_CAP: {
+          title: '1. Overall Project Budget Check',
+          question: 'Does this purchase fit inside your overall project budget?',
+          formula: 'total_spent + quote <= total_budget'
+        },
+        G2_CATEGORY_CAP: {
+          title: '2. Category Allowance Envelope',
+          question: 'Does this stay within the specific category envelope limit?',
+          formula: 'cat_spent + quote <= cat_cap (+ contingency_buffer)'
+        },
+        G3_DOMINANCE: {
+          title: '3. Budget Balance & Dominance Check',
+          question: 'Does this single item consume too large a share of your funds?',
+          formula: 'quote / total_budget <= 30% (warn 30-50%, hard deny >50%)'
+        },
+        G4_VALUE_FOR_MONEY: {
+          title: '4. Fair Market Price Check',
+          question: 'Is this price reasonable compared to average market prices?',
+          formula: 'quote / ref_median <= 1.15x (warn 1.15-1.50x, hard deny >1.50x)'
+        },
+        G5_FORWARD_COHERENCE: {
+          title: '5. Project Completion Guarantee',
+          question: 'Will there be enough funds left to finish all other essentials?',
+          formula: 'remaining_funds_after >= required_essential_reserves'
+        }
+      };
 
       // Initialize metadata and scenarios from server
       async function initApp() {
@@ -904,23 +975,35 @@ export function renderAppHtml(): string {
         if (!state.dashboard) return;
         const d = state.dashboard;
         document.getElementById('kpi-total-budget').textContent = fmtDollars(d.total_budget_cents);
-        document.getElementById('kpi-goal-title').textContent = 'Goal: ' + state.project.goal_text;
+        document.getElementById('kpi-goal-title').textContent = state.technicalMode 
+          ? 'mandate.total_budget_cents: ' + d.total_budget_cents
+          : 'Goal: ' + state.project.goal_text;
+          
         document.getElementById('kpi-spent').textContent = fmtDollars(d.total_spent_cents);
         const pct = d.total_budget_cents > 0 ? Math.round((d.total_spent_cents / d.total_budget_cents) * 100) : 0;
-        document.getElementById('kpi-spent-pct').textContent = pct + '% captured via PayPal';
+        document.getElementById('kpi-spent-pct').textContent = state.technicalMode
+          ? 'sum(payment.amount_cents): ' + d.total_spent_cents + ' (' + pct + '%)'
+          : pct + '% of total budget';
+
         document.getElementById('kpi-remaining').textContent = fmtDollars(d.remaining_cents);
-        document.getElementById('kpi-reserve-needed').textContent = 'Essential reserve: ' + fmtDollars(d.required_reserve_cents);
+        document.getElementById('kpi-reserve-needed').textContent = state.technicalMode
+          ? 'G5 essential reserve: ' + fmtDollars(d.required_reserve_cents)
+          : 'Essential reserve needed: ' + fmtDollars(d.required_reserve_cents);
 
         const finEl = document.getElementById('kpi-finishable');
         const finSub = document.getElementById('kpi-finishable-sub');
         if (d.project_finishable) {
           finEl.textContent = 'YES — INTACT';
           finEl.style.color = 'var(--pass)';
-          finSub.textContent = fmtDollars(d.remaining_cents) + ' covers ' + fmtDollars(d.required_reserve_cents) + ' reserves';
+          finSub.textContent = state.technicalMode
+            ? 'remaining (' + fmtDollars(d.remaining_cents) + ') >= reserve (' + fmtDollars(d.required_reserve_cents) + ')'
+            : 'All essential categories fundable';
         } else {
           finEl.textContent = 'NO — DEFICIT';
           finEl.style.color = 'var(--deny)';
-          finSub.textContent = 'Remaining budget insufficient for essentials';
+          finSub.textContent = state.technicalMode
+            ? 'G5 violation: shortfall of ' + fmtDollars(d.required_reserve_cents - d.remaining_cents)
+            : 'Remaining budget insufficient for essentials';
         }
 
         if (state.mandate) {
@@ -946,7 +1029,7 @@ export function renderAppHtml(): string {
             <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
               <div style="display: flex; align-items: center; gap: 0.45rem;">
                 <strong style="font-size: 0.86rem; color: var(--ink-primary);">\${cat.name}</strong>
-                \${cat.essential ? (isFunded ? '<span class="pill pill-pass" style="font-size: 0.68rem;">✓ Funded</span>' : '<span class="pill" style="font-size: 0.68rem;">Essential</span>') : '<span class="pill" style="font-size: 0.68rem;">Contingency</span>'}
+                \${cat.essential ? (isFunded ? '<span class="pill pill-pass" style="font-size: 0.68rem;">✓ Funded</span>' : '<span class="pill" style="font-size: 0.68rem;">Essential</span>') : '<span class="pill" style="font-size: 0.68rem;">Backup Reserve</span>'}
               </div>
               <div class="font-mono" style="font-size: 0.8rem;">
                 Spent: <strong>\${fmtDollars(cat.spent_cents)}</strong> / Cap: <strong>\${fmtDollars(cat.cap_cents)}</strong>
@@ -955,6 +1038,11 @@ export function renderAppHtml(): string {
             <div class="progress-bar-bg">
               <div class="progress-bar-fill \${isOver ? 'over' : fillPct > 0 ? 'safe' : ''}" style="width: \${fillPct}%;"></div>
             </div>
+            \${state.technicalMode ? \`
+              <div style="font-size: 0.7rem; color: var(--ink-muted); margin-top: 0.35rem;" class="font-mono">
+                cap_cents: \${cat.cap_cents} | ref_est: \${cat.reference_estimate_cents} | essential: \${cat.essential}
+              </div>
+            \` : ''}
           \`;
           container.appendChild(row);
         });
@@ -1002,7 +1090,7 @@ export function renderAppHtml(): string {
                 \${fmtDollars(item.quoted_price_cents)}
               </div>
               <button type="button" class="btn btn-primary btn-propose-item" data-idx="\${idx}" style="font-size: 0.74rem; padding: 0.3rem 0.65rem;">
-                Propose Item →
+                Evaluate Item →
               </button>
             </div>
           \`;
@@ -1017,12 +1105,12 @@ export function renderAppHtml(): string {
             b.textContent = 'Evaluating…';
             await executeProposalSubmission(item);
             b.disabled = false;
-            b.textContent = 'Propose Item →';
+            b.textContent = 'Evaluate Item →';
           });
         });
       }
 
-      // Execute Proposal Submission through API
+      // Execute Proposal Submission through API & open Evaluation Modal
       async function executeProposalSubmission(itemSpec) {
         if (!state.project || !state.mandate) return;
         const res = await fetch('/api/projects/' + state.project.id + '/proposals', {
@@ -1043,22 +1131,143 @@ export function renderAppHtml(): string {
         const data = await res.json();
         await refreshDashboardState(state.project.id);
 
-        if (data.gate_evaluation === 'DENY') {
-          showToast(\`DENIED: \${data.reason_codes.length} gates fired against \${fmtDollars(itemSpec.quoted_price_cents)}. Zero PayPal calls.\`);
-        } else if (data.gate_evaluation === 'PASS') {
-          showToast(\`PASS: Paid \${fmtDollars(itemSpec.quoted_price_cents)} via PayPal Sandbox.\`);
-        } else {
-          showToast(\`ESCALATED: \${fmtDollars(itemSpec.quoted_price_cents)} quote requires owner approval.\`);
-        }
+        // Open the dedicated evaluation flow modal
+        openEvaluationModal(itemSpec, data);
       }
 
-      // Render Evaluated Decision Feed (Right Column Tab 2)
+      // Dedicated Evaluation Flow Modal
+      function openEvaluationModal(itemSpec, data) {
+        const modal = document.getElementById('eval-flow-modal');
+        const p = data.proposal;
+        const gates = data.gates || [];
+        const pay = data.payment;
+        const decision = data.gate_evaluation || p.decision;
+        const isPass = decision === 'PASS' || decision === 'paid';
+        const isDeny = decision === 'DENY';
+        const isEscalate = decision === 'ESCALATE';
+
+        // Header and item info
+        document.getElementById('eval-item-name').textContent = p.item_name;
+        document.getElementById('eval-item-cat').textContent = p.category;
+        document.getElementById('eval-item-type').textContent = itemSpec.item_type === 'labor' ? 'Labor & Subcontract' : 'Part & Material';
+        document.getElementById('eval-item-meta').textContent = 'Vendor: ' + p.vendor + ' · ' + p.justification;
+        document.getElementById('eval-item-price').textContent = fmtDollars(p.quoted_price_cents);
+
+        // Verdict Banner
+        const vBanner = document.getElementById('eval-verdict-banner');
+        const vTitle = document.getElementById('eval-verdict-title');
+        const vDesc = document.getElementById('eval-verdict-desc');
+
+        if (isPass) {
+          vBanner.className = 'eval-card-callout pass';
+          vTitle.textContent = '✅ Safe to Purchase!';
+          vDesc.textContent = 'All 5 budget guardrails passed with flying colors. Order was safely created and captured via PayPal Sandbox.';
+        } else if (isDeny) {
+          vBanner.className = 'eval-card-callout deny';
+          vTitle.textContent = '⛔ Purchase Blocked!';
+          vDesc.textContent = 'Violates fiduciary guardrails. Execution halted safely — zero PayPal calls were made ($0 spent).';
+        } else {
+          vBanner.className = 'eval-card-callout escalate';
+          vTitle.textContent = '⚠️ Approval Needed';
+          vDesc.textContent = 'This item exceeds its category envelope, but your backup contingency buffer can fund this purchase.';
+        }
+
+        // Render the 5 Friendly Checks
+        const checksContainer = document.getElementById('eval-five-checks-container');
+        checksContainer.innerHTML = '';
+
+        gates.forEach(g => {
+          const meta = GATE_META[g.gate] || { title: g.gate, question: g.gate_name, formula: g.gate };
+          const isGPass = g.outcome === 'pass';
+          const isGDeny = g.outcome === 'deny';
+          const pillClass = isGPass ? 'pill-pass' : isGDeny ? 'pill-deny' : 'pill-escalate';
+          const boxClass = isGPass ? 'pass' : isGDeny ? 'deny' : 'escalate';
+          const statusText = isGPass ? '✓ Safe' : isGDeny ? '✕ Blocked' : '⚠️ Warning';
+
+          const box = document.createElement('div');
+          box.className = \`eval-gate-check-box \${boxClass}\`;
+          box.innerHTML = \`
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+              <span style="font-weight: 700; font-size: 0.84rem; color: var(--ink-primary);">\${meta.title}</span>
+              <span class="pill \${pillClass}">\${statusText}</span>
+            </div>
+            <div style="font-size: 0.74rem; color: var(--ink-muted); font-style: italic;">\${meta.question}</div>
+            <div style="font-size: 0.78rem; color: var(--ink-secondary); margin-top: 0.15rem;">\${g.explanation}</div>
+            <div class="modal-tech-row \${(state.technicalMode || state.modalTechExpanded) ? '' : 'hidden'}" style="margin-top: 0.35rem; padding-top: 0.35rem; border-top: 1px dashed var(--border-subtle); font-size: 0.72rem; color: var(--ink-muted);">
+              <span class="font-mono"><strong>\${g.gate}</strong> | Reason: \${g.reason_code} | Formula: \${meta.formula}</span>
+            </div>
+          \`;
+          checksContainer.appendChild(box);
+        });
+
+        // PayPal Sandbox Note
+        const ppNote = document.getElementById('eval-paypal-note');
+        if (pay && pay.status === 'captured') {
+          ppNote.classList.remove('hidden');
+          ppNote.innerHTML = \`
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap;">
+              <span><strong>PayPal Sandbox Capture:</strong> Intent CAPTURE completed successfully.</span>
+              <span class="font-mono">Order: <strong>\${pay.paypal_order_id}</strong></span>
+            </div>
+          \`;
+        } else if (isDeny) {
+          ppNote.classList.remove('hidden');
+          ppNote.innerHTML = '<strong>Principle 3 Invariant:</strong> No PayPal API orders or tokens created for blocked proposals. Total charged: $0.00.';
+        } else {
+          ppNote.classList.add('hidden');
+        }
+
+        // Action Buttons
+        const actionsContainer = document.getElementById('eval-modal-actions');
+        actionsContainer.innerHTML = '';
+
+        if (isEscalate) {
+          const btnApprove = document.createElement('button');
+          btnApprove.type = 'button';
+          btnApprove.className = 'btn btn-primary';
+          btnApprove.textContent = 'Approve with Backup Reserve';
+          btnApprove.onclick = async () => {
+            btnApprove.disabled = true;
+            btnApprove.textContent = 'Capturing…';
+            await fetch('/api/proposals/' + p.id + '/approve', { method: 'POST' });
+            await refreshDashboardState(state.project.id);
+            modal.classList.add('hidden');
+            showToast('Approved & captured via PayPal Sandbox!');
+          };
+
+          const btnReject = document.createElement('button');
+          btnReject.type = 'button';
+          btnReject.className = 'btn';
+          btnReject.textContent = 'Reject Item';
+          btnReject.onclick = async () => {
+            btnReject.disabled = true;
+            await fetch('/api/proposals/' + p.id + '/reject', { method: 'POST' });
+            await refreshDashboardState(state.project.id);
+            modal.classList.add('hidden');
+            showToast('Proposal rejected — zero funds moved.');
+          };
+
+          actionsContainer.appendChild(btnApprove);
+          actionsContainer.appendChild(btnReject);
+        } else {
+          const btnDone = document.createElement('button');
+          btnDone.type = 'button';
+          btnDone.className = 'btn btn-primary';
+          btnDone.textContent = isPass ? 'Done / Back to Catalog' : 'Close / Try Alternative';
+          btnDone.onclick = () => modal.classList.add('hidden');
+          actionsContainer.appendChild(btnDone);
+        }
+
+        modal.classList.remove('hidden');
+      }
+
+      // Render Evaluated Decision Feed (Collapsible History)
       function renderDecisionFeed() {
         const container = document.getElementById('eval-items-container');
         document.getElementById('feed-count-badge').textContent = String(state.proposals.length);
 
         if (!state.proposals || state.proposals.length === 0) {
-          container.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--ink-muted); font-size: 0.82rem;">No proposals evaluated yet for this project. Propose items from the catalog to see 5-gate decisions.</div>';
+          container.innerHTML = '<div style="padding: 1.5rem; text-align: center; color: var(--ink-muted); font-size: 0.8rem;">No proposals evaluated yet. Click "Evaluate Item →" above to start testing!</div>';
           return;
         }
 
@@ -1078,54 +1287,6 @@ export function renderAppHtml(): string {
           else if (isEscalate) badgeHtml = '<span class="pill pill-escalate">ESCALATE · OWNER ACTION</span>';
           else badgeHtml = '<span class="pill">' + p.decision + '</span>';
 
-          let calloutHtml = '';
-          if (isDeny) {
-            const reasonsList = failedGates.map(g => \`<li><strong>\${g.gate} (\${g.gate_name}):</strong> \${g.explanation}</li>\`).join('');
-            calloutHtml = \`
-              <div class="eval-card-callout deny">
-                <div style="font-weight: 700; margin-bottom: 0.2rem;">✕ Blocked Before PayPal — Zero PayPal Calls</div>
-                <ul style="padding-left: 1.2rem; font-size: 0.78rem; display: flex; flex-direction: column; gap: 0.15rem;">\${reasonsList}</ul>
-              </div>
-            \`;
-          } else if (isEscalate) {
-            const reasonsList = failedGates.map(g => \`<li><strong>\${g.gate}:</strong> \${g.explanation}</li>\`).join('');
-            calloutHtml = \`
-              <div class="eval-card-callout escalate">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;">
-                  <div>
-                    <div style="font-weight: 700;">⚠ Escalated for Owner Confirmation</div>
-                    <ul style="padding-left: 1rem; font-size: 0.78rem;">\${reasonsList}</ul>
-                  </div>
-                  <div style="display: flex; gap: 0.4rem;">
-                    <button type="button" class="btn btn-primary btn-eval-approve" data-id="\${p.id}" style="font-size: 0.74rem; padding: 0.25rem 0.6rem;">Approve &amp; Pay</button>
-                    <button type="button" class="btn btn-eval-reject" data-id="\${p.id}" style="font-size: 0.74rem; padding: 0.25rem 0.6rem;">Reject</button>
-                  </div>
-                </div>
-              </div>
-            \`;
-          } else if (pay && pay.status === 'captured') {
-            calloutHtml = \`
-              <div class="eval-card-callout pass">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; font-size: 0.78rem;">
-                  <span>✓ PayPal Sandbox Captured: <strong>\${fmtDollars(pay.amount_cents)}</strong></span>
-                  <span class="font-mono">Order: <strong>\${pay.paypal_order_id}</strong> · Capture: <strong>\${pay.paypal_capture_id}</strong></span>
-                </div>
-              </div>
-            \`;
-          }
-
-          const gateRows = gates.map(g => {
-            const pillCls = g.outcome === 'pass' ? 'pill-pass' : g.outcome === 'escalate' ? 'pill-escalate' : 'pill-deny';
-            return \`
-              <tr>
-                <td class="font-mono font-bold" style="white-space: nowrap;">\${g.gate} · \${g.gate_name}</td>
-                <td><span class="pill \${pillCls}">\${g.outcome.toUpperCase()}</span></td>
-                <td class="font-mono" style="font-size: 0.74rem;">\${g.reason_code}</td>
-                <td>\${g.explanation}</td>
-              </tr>
-            \`;
-          }).join('');
-
           const card = document.createElement('div');
           card.className = \`eval-card \${isPaid ? 'pass' : isDeny ? 'deny' : 'escalate'}\`;
           card.innerHTML = \`
@@ -1143,59 +1304,35 @@ export function renderAppHtml(): string {
                 <div style="margin-top: 0.2rem;">\${badgeHtml}</div>
               </div>
             </div>
-            \${calloutHtml}
             <div style="padding: 0.45rem 1.15rem; background: var(--bg-subtle); display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem;">
               <span style="color: var(--ink-muted);">5 Deterministic Gates</span>
-              <button type="button" class="btn-toggle-gates" style="background: none; border: none; color: var(--brand-blue); font-weight: 700; cursor: pointer;">
-                Inspect Verification Details ▾
+              <button type="button" class="btn btn-reopen-eval-modal" data-idx="\${state.proposals.length - 1 - idx}" style="background: none; border: none; color: var(--brand-blue); font-weight: 700; cursor: pointer;">
+                View Guardrail Breakdown ↗
               </button>
-            </div>
-            <div class="gate-pane hidden" style="border-top: 1px solid var(--border-subtle);">
-              <table class="eval-gate-table">
-                <thead>
-                  <tr>
-                    <th>Gate</th>
-                    <th>Result</th>
-                    <th>Reason Code</th>
-                    <th>Deterministic Comparison</th>
-                  </tr>
-                </thead>
-                <tbody>\${gateRows}</tbody>
-              </table>
             </div>
           \`;
           container.appendChild(card);
         });
 
-        // Toggle verification details
-        container.querySelectorAll('.btn-toggle-gates').forEach(b => {
-          b.addEventListener('click', (e) => {
-            const card = e.target.closest('.eval-card');
-            const pane = card.querySelector('.gate-pane');
-            const isHidden = pane.classList.contains('hidden');
-            pane.classList.toggle('hidden', !isHidden);
-            b.textContent = isHidden ? 'Hide Verification Details ▴' : 'Inspect Verification Details ▾';
-          });
-        });
-
-        container.querySelectorAll('.btn-eval-approve').forEach(b => {
-          b.addEventListener('click', async () => {
-            const id = b.dataset.id;
-            b.disabled = true;
-            b.textContent = 'Capturing…';
-            await fetch('/api/proposals/' + id + '/approve', { method: 'POST' });
-            await refreshDashboardState(state.project.id);
-            showToast('Escalation approved — PayPal Sandbox payment captured.');
-          });
-        });
-
-        container.querySelectorAll('.btn-eval-reject').forEach(b => {
-          b.addEventListener('click', async () => {
-            const id = b.dataset.id;
-            b.disabled = true;
-            await fetch('/api/proposals/' + id + '/reject', { method: 'POST' });
-            await refreshDashboardState(state.project.id);
-            showToast('Escalation rejected — no payment created.');
+        container.querySelectorAll('.btn-reopen-eval-modal').forEach(b => {
+          b.addEventListener('click', () => {
+            const idx = Number(b.dataset.idx);
+            const item = state.proposals[idx];
+            if (item) {
+              openEvaluationModal({
+                item_name: item.proposal.item_name,
+                item_type: 'part',
+                justification: item.proposal.justification,
+                vendor: item.proposal.vendor,
+                category: item.proposal.category,
+                quoted_price_cents: item.proposal.quoted_price_cents
+              }, {
+                proposal: item.proposal,
+                gates: item.gates,
+                payment: item.payment,
+                gate_evaluation: item.proposal.decision
+              });
+            }
           });
         });
       }
@@ -1286,24 +1423,42 @@ export function renderAppHtml(): string {
         wtState.textContent = state.showWalkthrough ? '[Active]' : '[Off]';
       });
 
-      // Purchasing Engine Tab Switcher
-      const tabCatalog = document.getElementById('tab-btn-catalog');
-      const tabEvalFeed = document.getElementById('tab-btn-evalfeed');
-      const viewCatalog = document.getElementById('view-catalog');
-      const viewEvalFeed = document.getElementById('view-evalfeed');
-
-      tabCatalog.addEventListener('click', () => {
-        tabCatalog.classList.add('btn-primary');
-        tabEvalFeed.classList.remove('btn-primary');
-        viewCatalog.classList.remove('hidden');
-        viewEvalFeed.classList.add('hidden');
+      // Technical Mode Toggle
+      const techModeBtn = document.getElementById('btn-toggle-tech-mode');
+      const techModeIcon = document.getElementById('tech-mode-icon');
+      const techModeLabel = document.getElementById('tech-mode-label');
+      techModeBtn.addEventListener('click', () => {
+        state.technicalMode = !state.technicalMode;
+        techModeBtn.classList.toggle('btn-active-toggle', state.technicalMode);
+        techModeIcon.textContent = state.technicalMode ? '🔬' : '💡';
+        techModeLabel.textContent = state.technicalMode ? 'Mode: Technical' : 'Mode: Plain English';
+        renderKPIs();
+        renderCategoryEnvelopes();
+        showToast(state.technicalMode ? 'Technical formulas and integer cents enabled' : 'Switched to plain-English mode');
       });
 
-      tabEvalFeed.addEventListener('click', () => {
-        tabEvalFeed.classList.add('btn-primary');
-        tabCatalog.classList.remove('btn-primary');
-        viewEvalFeed.classList.remove('hidden');
-        viewCatalog.classList.add('hidden');
+      // Toggle History Accordion
+      const btnToggleEvalFeed = document.getElementById('btn-toggle-evalfeed');
+      const viewEvalFeed = document.getElementById('view-evalfeed');
+      const evalfeedChevron = document.getElementById('evalfeed-chevron');
+      btnToggleEvalFeed.addEventListener('click', () => {
+        const isHidden = viewEvalFeed.classList.contains('hidden');
+        viewEvalFeed.classList.toggle('hidden', !isHidden);
+        evalfeedChevron.textContent = isHidden ? '▴ Hide History' : '▾ Show History';
+      });
+
+      // Toggle Technical Formulas in Modal
+      document.getElementById('btn-toggle-modal-tech-details').addEventListener('click', () => {
+        state.modalTechExpanded = !state.modalTechExpanded;
+        document.querySelectorAll('.modal-tech-row').forEach(r => {
+          r.classList.toggle('hidden', !state.modalTechExpanded && !state.technicalMode);
+        });
+        document.getElementById('modal-tech-label').textContent = state.modalTechExpanded ? 'Hide Technical Details ▴' : '🔬 Show Technical Details ▾';
+      });
+
+      // Close Evaluation Modal
+      document.getElementById('btn-close-eval-modal').addEventListener('click', () => {
+        document.getElementById('eval-flow-modal').classList.add('hidden');
       });
 
       // Catalog Filter Buttons
