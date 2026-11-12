@@ -1,0 +1,17 @@
+name = "prismpay"
+main = "src/index.ts"
+compatibility_date = "2025-02-01"
+
+[vars]
+PAYPAL_ENV = "sandbox"
+
+# Optional Cloudflare D1 binding:
+# To bind a remote D1 database in production, uncomment and set your database_id:
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "prismpay-db"
+# database_id = "replace-with-your-d1-database-id"
+
+# Optional Cloudflare Workers AI binding:
+# [ai]
+# binding = "AI"
